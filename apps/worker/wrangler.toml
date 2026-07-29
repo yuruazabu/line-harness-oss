@@ -5,10 +5,23 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 # ═══════════════════════════════════════════════════════════════
-# デフォルト = テスト環境
-# 使い方: npx wrangler deploy
+# ゆる麻布 本番 (fork運用 / prod ブランチ)
+# 使い方: pnpm --filter worker build && npx wrangler deploy
+#
+# upstream ではここはテスト環境用のプレースホルダだが、この fork の
+# prod ブランチには本番の実値を入れている。デプロイ済み Worker と
+# 完全一致させること (差分はそのまま本番の挙動変化になる)。
+#   - 本番には plain-text vars が1つも無いので [vars] は置かない
+#     (self-update route は vars 不在で不活性。upstream の設計どおり)
+#   - workers_dev = true は必須。旧ホスト line-harness.yuruazabu.workers.dev
+#     を配布済リンクと保存済み画像の絶対URLが参照しているため落とせない
+#   - custom domain は明示宣言する
 # ═══════════════════════════════════════════════════════════════
-account_id = "YOUR_DEV_ACCOUNT_ID"
+account_id = "f4b835c4e96eeb8304c00439531ba751"
+
+routes = [
+  { pattern = "line.yuruazabu.net", custom_domain = true }
+]
 
 [assets]
 directory = "dist/client"
@@ -22,7 +35,8 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "line-harness"
-database_id = "YOUR_DEV_D1_DATABASE_ID"
+# 既存の本番 D1。デプロイ済み Worker の env.DB と同一 ID であること
+database_id = "20e8f65c-effa-4b37-8c3d-56928986be9b"
 
 [[r2_buckets]]
 binding = "IMAGES"
@@ -39,16 +53,10 @@ crons = ["*/5 * * * *", "0 */6 * * *"]
 # 運用のため self-update は使わず、vars/secrets 不在で route は実行時ガードで
 # 不活性になる (本番挙動を変えないための判断, 2026-07-07)。
 # ═══════════════════════════════════════════════════════════════
-[vars]
-WORKER_NAME = "line-harness"
-ADMIN_PAGES_PROJECT = "line-harness-admin"
-LIFF_PAGES_PROJECT = "line-harness-liff"
-D1_DATABASE_ID = "YOUR_DEV_D1_DATABASE_ID"
-MANIFEST_URL = "https://github.com/Shudesu/line-harness-oss/releases/latest/download/release-manifest.json"
-WORKER_PUBLIC_URL = "https://line-harness.workers.dev"
-ADMIN_PUBLIC_URL = "https://line-harness-admin.pages.dev"
-LIFF_PUBLIC_URL = "https://line-harness-liff.pages.dev"
-CF_ACCOUNT_ID = "YOUR_DEV_ACCOUNT_ID"
+# ゆる麻布本番では [vars] を意図的に空にしている。
+# デプロイ済み Worker には plain-text var が1つも無く (wrangler versions view で確認)、
+# ここで vars を足すと本番の挙動が変わるため。self-update route は
+# vars 不在のまま実行時ガードで不活性になる (upstream の設計どおり)。
 
 # ═══════════════════════════════════════════════════════════════
 # 本番環境
