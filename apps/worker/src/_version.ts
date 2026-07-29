@@ -18,7 +18,7 @@
 // upstream を取り込んで再デプロイしたら WORKER_HASH を新ビルドの sha256 に更新すること。
 // 手順は yuruazabu-line-harness/docs/fork-operations.md を参照。
 export const BUNDLE_VERSION = '0.17.0';
-export const WORKER_HASH = 'sha256:b132a39d031f737b2b5ae0268519abbc63e30498fab23bad8c7748923f1b78d0';
+export const WORKER_HASH = 'sha256:688956b7989d148975d40b3a4c561024d3b46aa33b4d764a98e0a94d35cd0131';
 export const ADMIN_HASH = 'sha256:24f2e7900f9fb2adc28d4e9d49f78832f67b9a24abca08b69e3b40e1bf4557d3';
 export const LIFF_HASH = 'sha256:deea955f0a43224bb582e91baff0a52dea5731e94487a4a0839d3f9661db9d5e';
 export const RELEASED_AT = '2026-07-07T16:39:57.344Z';

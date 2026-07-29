@@ -225,3 +225,98 @@ describe('fireEvent — send_message action logging', () => {
     expect(String(captured[0].binds[3])).toContain('from-template');
   });
 });
+
+describe('fireEvent — Slack 送信Webhook', () => {
+  const captured: CapturedInsert[] = [];
+
+  function dbWithFriend(displayName: string | null): D1Database {
+    return {
+      prepare(sql: string) {
+        return {
+          bind() {
+            return this;
+          },
+          async all<T>(): Promise<{ results: T[] }> {
+            return { results: [] };
+          },
+          async first<T>(): Promise<T | null> {
+            if (sql.includes('display_name')) {
+              return { display_name: displayName } as T;
+            }
+            return null;
+          },
+          async run(): Promise<{ success: true }> {
+            return { success: true };
+          },
+        };
+      },
+    } as unknown as D1Database;
+  }
+
+  async function setWebhook(url: string): Promise<void> {
+    const db = await import('@line-crm/db');
+    (
+      db.getActiveOutgoingWebhooksByEvent as unknown as {
+        mockResolvedValue: (v: unknown) => void;
+      }
+    ).mockResolvedValue([{ id: 'wh-1', url, secret: 'unused-for-slack' }]);
+    (
+      db.getActiveAutomationsByEvent as unknown as { mockResolvedValue: (v: unknown) => void }
+    ).mockResolvedValue([]);
+  }
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('Slack URL には Slack 形式のペイロードを送る', async () => {
+    await setWebhook('https://hooks.slack.com/services/T1/B2/xxx');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fireEvent(dbWithFriend('ゆる麻布'), 'message_received', {
+      friendId: 'friend-1',
+      eventData: { text: '料金を知りたい', matched: false },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.blocks).toBeDefined();
+    expect(JSON.stringify(body.blocks)).toContain('*ゆる麻布* さんからLINEメッセージ');
+    expect(JSON.stringify(body.blocks)).toContain('> 料金を知りたい');
+    // Slack は署名検証をしないので HMAC ヘッダは付けない
+    expect(fetchMock.mock.calls[0][1].headers['X-Webhook-Signature']).toBeUndefined();
+  });
+
+  it('自動応答が返したメッセージは Slack に送らない', async () => {
+    await setWebhook('https://hooks.slack.com/services/T1/B2/xxx');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fireEvent(dbWithFriend('ゆる麻布'), 'message_received', {
+      friendId: 'friend-1',
+      eventData: { text: '資料請求', matched: true },
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('Slack 以外の URL は従来どおり素のペイロード + HMAC 署名で送る', async () => {
+    await setWebhook('https://example.com/webhook');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fireEvent(dbWithFriend('ゆる麻布'), 'message_received', {
+      friendId: 'friend-1',
+      eventData: { text: 'hello', matched: false },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body.event).toBe('message_received');
+    expect(body.data.eventData.text).toBe('hello');
+    expect(init.headers['X-Webhook-Signature']).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
