@@ -23,6 +23,12 @@ import {
 import { LineClient } from '@line-crm/line-sdk';
 import type { Message } from '@line-crm/line-sdk';
 import { sendAdConversions } from './ad-conversion.js';
+import {
+  buildSlackPayload,
+  isSlackIncomingWebhook,
+  resolveDisplayName,
+  shouldNotifySlack,
+} from './slack-webhook.js';
 
 export interface EventPayload {
   friendId?: string;
@@ -85,6 +91,32 @@ async function fireOutgoingWebhooks(
     const webhooks = await getActiveOutgoingWebhooksByEvent(db, eventType);
     for (const wh of webhooks) {
       try {
+        // 送信先が Slack の Incoming Webhook なら Slack が読める形に整形する。
+        // 素のペイロードは Slack に invalid_payload で拒否されるため。
+        if (isSlackIncomingWebhook(wh.url)) {
+          if (!shouldNotifySlack(eventType, payload.eventData)) continue;
+          const slackBody = JSON.stringify(
+            buildSlackPayload({
+              eventType,
+              timestamp: jstNow(),
+              displayName: await resolveDisplayName(db, payload.friendId),
+              eventData: payload.eventData,
+            }),
+          );
+          // Slack は署名検証をしないので HMAC ヘッダは付けない（URL自体が秘密）。
+          const res = await fetch(wh.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: slackBody,
+          });
+          if (!res.ok) {
+            console.error(
+              `送信Webhook ${wh.id} (Slack) が失敗: status=${res.status} body=${await res.text()}`,
+            );
+          }
+          continue;
+        }
+
         const body = JSON.stringify({
           event: eventType,
           timestamp: jstNow(),
