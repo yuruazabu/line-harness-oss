@@ -6,6 +6,12 @@ import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
 
+// 「LINE で体験する」バナーの遷移先。upstream はここに
+// https://your-worker.your-subdomain.workers.dev を直書きしており、どのインストールでも
+// リンクが壊れていた。他ページ (inflow-links/page.tsx など) と同じくビルド時の
+// NEXT_PUBLIC_API_URL から組み立てる。未設定ならバナーを出さない。
+const WORKER_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
+
 const ccPrompts = [
   {
     title: 'ダッシュボードのKPI分析',
@@ -152,22 +158,24 @@ export default function DashboardPage() {
       )}
 
       {/* Demo banner */}
-      <a
-        href="https://your-worker.your-subdomain.workers.dev/auth/line?ref=dashboard"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mb-6 p-4 rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 transition-colors"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-gray-900">LINE で体験する</p>
-            <p className="text-xs text-gray-500 mt-0.5">友だち追加でステップ配信・フォーム・自動返信を体験</p>
+      {WORKER_BASE && (
+        <a
+          href={`${WORKER_BASE}/auth/line?ref=dashboard`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mb-6 p-4 rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-gray-900">LINE で体験する</p>
+              <p className="text-xs text-gray-500 mt-0.5">友だち追加でステップ配信・フォーム・自動返信を体験</p>
+            </div>
+            <span className="text-xs px-3 py-1.5 rounded-full text-white font-medium" style={{ backgroundColor: '#06C755' }}>
+              友だち追加
+            </span>
           </div>
-          <span className="text-xs px-3 py-1.5 rounded-full text-white font-medium" style={{ backgroundColor: '#06C755' }}>
-            友だち追加
-          </span>
-        </div>
-      </a>
+        </a>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
