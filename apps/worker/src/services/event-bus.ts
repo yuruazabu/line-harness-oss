@@ -23,12 +23,7 @@ import {
 import { LineClient } from '@line-crm/line-sdk';
 import type { Message } from '@line-crm/line-sdk';
 import { sendAdConversions } from './ad-conversion.js';
-import {
-  buildSlackPayload,
-  isSlackIncomingWebhook,
-  resolveDisplayName,
-  shouldNotifySlack,
-} from './slack-webhook.js';
+import { deliverOutgoingWebhook } from './outgoing-webhook-delivery.js';
 
 export interface EventPayload {
   friendId?: string;
@@ -91,58 +86,14 @@ async function fireOutgoingWebhooks(
     const webhooks = await getActiveOutgoingWebhooksByEvent(db, eventType);
     for (const wh of webhooks) {
       try {
-        // 送信先が Slack の Incoming Webhook なら Slack が読める形に整形する。
-        // 素のペイロードは Slack に invalid_payload で拒否されるため。
-        if (isSlackIncomingWebhook(wh.url)) {
-          if (!shouldNotifySlack(eventType, payload.eventData)) continue;
-          const slackBody = JSON.stringify(
-            buildSlackPayload({
-              eventType,
-              timestamp: jstNow(),
-              displayName: await resolveDisplayName(db, payload.friendId),
-              eventData: payload.eventData,
-            }),
+        // 整形・署名・宛先判定は deliverOutgoingWebhook に1本化してある
+        // （管理画面のテスト送信と同じ経路を通すため）。
+        const result = await deliverOutgoingWebhook(db, wh, eventType, payload);
+        if (result.kind === 'sent' && result.slack && !result.ok) {
+          console.error(
+            `送信Webhook ${wh.id} (Slack) が失敗: status=${result.status} body=${result.body}`,
           );
-          // Slack は署名検証をしないので HMAC ヘッダは付けない（URL自体が秘密）。
-          const res = await fetch(wh.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: slackBody,
-          });
-          if (!res.ok) {
-            console.error(
-              `送信Webhook ${wh.id} (Slack) が失敗: status=${res.status} body=${await res.text()}`,
-            );
-          }
-          continue;
         }
-
-        const body = JSON.stringify({
-          event: eventType,
-          timestamp: jstNow(),
-          data: payload,
-        });
-
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-
-        // HMAC署名（シークレットがある場合）
-        if (wh.secret) {
-          const encoder = new TextEncoder();
-          const key = await crypto.subtle.importKey(
-            'raw',
-            encoder.encode(wh.secret),
-            { name: 'HMAC', hash: 'SHA-256' },
-            false,
-            ['sign'],
-          );
-          const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
-          const hexSignature = Array.from(new Uint8Array(signature))
-            .map((b) => b.toString(16).padStart(2, '0'))
-            .join('');
-          headers['X-Webhook-Signature'] = hexSignature;
-        }
-
-        await fetch(wh.url, { method: 'POST', headers, body });
       } catch (err) {
         console.error(`送信Webhook ${wh.id} への通知失敗:`, err);
       }

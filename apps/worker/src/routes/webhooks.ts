@@ -12,6 +12,8 @@ import {
   deleteOutgoingWebhook,
 } from '@line-crm/db';
 import type { Env } from '../index.js';
+import { deliverOutgoingWebhook } from '../services/outgoing-webhook-delivery.js';
+import { TEST_EVENT_TYPE } from '../services/slack-webhook.js';
 
 const webhooks = new Hono<Env>();
 
@@ -333,6 +335,69 @@ webhooks.delete('/api/webhooks/outgoing/:id', async (c) => {
   } catch (err) {
     console.error('DELETE /api/webhooks/outgoing/:id error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * POST /api/webhooks/outgoing/:id/test — 登録済みの送信Webhookへテスト送信する。
+ *
+ * 管理画面の「テスト送信」ボタン用。ブラウザから hooks.slack.com は CORS で
+ * 直接叩けないため Worker が代理で送る。
+ *
+ * 配送は本番と同じ `deliverOutgoingWebhook` を通す（別経路にすると
+ * 「テストは通るのに本番で飛ばない」を作り込むため）。
+ * `is_active` が false でも送る — 有効化前に宛先を確かめたいのが普通なので。
+ *
+ * 宛先が失敗を返しても HTTP 200 で返し、`ok:false` と宛先の応答をそのまま載せる。
+ * Slack は `no_team` / `invalid_token` のように原因を本文で返すため、
+ * それを画面に出せれば設定ミスを自力で直せる。
+ */
+webhooks.post('/api/webhooks/outgoing/:id/test', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const wh = await getOutgoingWebhookById(c.env.DB, id);
+    if (!wh) return c.json({ success: false, error: 'Not found' }, 404);
+
+    const result = await deliverOutgoingWebhook(
+      c.env.DB,
+      wh,
+      TEST_EVENT_TYPE,
+      {
+        eventData: {
+          text: 'line-harness の設定テストです。この通知が見えていれば連携できています。',
+        },
+      },
+      { captureBody: true, displayName: null },
+    );
+
+    if (result.kind === 'skipped') {
+      // TEST_EVENT_TYPE は shouldNotifySlack の除外対象ではないので通常ここには来ない。
+      return c.json({
+        success: true,
+        data: { sent: false, skipped: result.reason, isActive: Boolean(wh.is_active) },
+      });
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        sent: true,
+        slack: result.slack,
+        status: result.status,
+        ok: result.ok,
+        body: result.body,
+        isActive: Boolean(wh.is_active),
+      },
+    });
+  } catch (err) {
+    // 宛先に届かない（DNS・TLS・タイムアウト）のは設定ミスの典型なので、
+    // 500 で潰さず理由を載せて返す。
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('POST /api/webhooks/outgoing/:id/test error:', message);
+    return c.json({
+      success: true,
+      data: { sent: false, ok: false, status: 0, body: `送信に失敗しました: ${message}` },
+    });
   }
 });
 

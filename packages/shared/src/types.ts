@@ -607,6 +607,25 @@ export interface OutgoingWebhookCreated extends Omit<OutgoingWebhook, 'hasSecret
   secret: string;
 }
 
+// POST /api/webhooks/outgoing/:id/test の結果。
+// 宛先が失敗を返しても API 自体は 200 を返すので、成否は `ok` で判定する。
+export interface OutgoingWebhookTestResult {
+  /** 実際に送信したか（false は skipped、または送信前に失敗） */
+  sent: boolean;
+  /** 宛先が Slack Incoming Webhook と判定されたか */
+  slack?: boolean;
+  /** 宛先のHTTPステータス。送信前に失敗した場合は 0 */
+  status?: number;
+  /** 宛先が 2xx を返したか */
+  ok?: boolean;
+  /** 宛先の応答本文（先頭500文字）。Slack は `no_team` 等の原因をここに返す */
+  body?: string;
+  /** 送信をスキップした理由 */
+  skipped?: string;
+  /** 送信Webhookが有効か（無効でもテスト送信はできる） */
+  isActive?: boolean;
+}
+
 // -----------------------------------------------------------------------------
 // Google Calendar 連携
 // -----------------------------------------------------------------------------
