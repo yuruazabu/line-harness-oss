@@ -20,6 +20,7 @@ import type {
   IncomingWebhookCreated,
   OutgoingWebhook,
   OutgoingWebhookCreated,
+  OutgoingWebhookTestResult,
   NotificationRule,
   Notification,
   AccountHealthLog,
@@ -1092,6 +1093,12 @@ export const api = {
         }),
       delete: (id: string) =>
         fetchApi<ApiResponse<null>>(`/api/webhooks/outgoing/${id}`, { method: 'DELETE' }),
+      // 宛先が失敗を返しても success:true で返る。成否は data.ok で判定する
+      // （Slack は原因を body に載せてくるので、そのまま画面に出せる）。
+      test: (id: string) =>
+        fetchApi<ApiResponse<OutgoingWebhookTestResult>>(`/api/webhooks/outgoing/${id}/test`, {
+          method: 'POST',
+        }),
     },
   },
   notifications: {

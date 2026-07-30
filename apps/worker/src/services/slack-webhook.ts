@@ -56,9 +56,17 @@ function quote(text: string): string {
     .join('\n');
 }
 
+/**
+ * 管理画面の「テスト送信」で使う疑似イベント種別。
+ * 実際に発火するイベント名（`message_received` 等）とぶつからない名前にしてある。
+ */
+export const TEST_EVENT_TYPE = 'test_notification';
+
 /** イベント種別ごとの見出し。未知のイベントもそのまま名前を出して落とさない。 */
 function headline(eventType: string, name: string): string {
   switch (eventType) {
+    case TEST_EVENT_TYPE:
+      return '*line-harness* からのテスト通知';
     case 'message_received':
       return `*${name}* さんからLINEメッセージ`;
     case 'friend_add':
@@ -86,15 +94,24 @@ export function buildSlackPayload(input: SlackNotificationInput): {
   const blocks: unknown[] = [
     { type: 'section', text: { type: 'mrkdwn', text: body.join('\n') } },
   ];
+  const isTest = input.eventType === TEST_EVENT_TYPE;
   if (input.timestamp) {
     blocks.push({
       type: 'context',
-      elements: [{ type: 'mrkdwn', text: `受信 ${escapeSlack(input.timestamp)}` }],
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: `${isTest ? 'テスト送信' : '受信'} ${escapeSlack(input.timestamp)}`,
+        },
+      ],
     });
   }
 
   // text は通知プレビュー / フォールバック用（Slack の必須項目）。装飾は入れない。
-  return { text: `${input.displayName ?? '名前不明の友だち'} — ${input.eventType}`, blocks };
+  const fallback = isTest
+    ? 'line-harness からのテスト通知'
+    : `${input.displayName ?? '名前不明の友だち'} — ${input.eventType}`;
+  return { text: fallback, blocks };
 }
 
 /** 送信Webhook のペイロードに表示名は入っていないので D1 から引く。失敗しても通知は止めない。 */

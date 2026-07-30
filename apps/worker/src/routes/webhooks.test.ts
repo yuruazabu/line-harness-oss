@@ -20,6 +20,13 @@ vi.mock('../services/event-bus.js', () => ({
   fireEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
+// 配送そのものは outgoing-webhook-delivery.test.ts で見ている。
+// ここではルートの契約（404・レスポンス形・エラーの出し方）だけを確認する。
+vi.mock('../services/outgoing-webhook-delivery.js', () => ({
+  deliverOutgoingWebhook: vi.fn(),
+}));
+
+import { deliverOutgoingWebhook } from '../services/outgoing-webhook-delivery.js';
 import {
   getIncomingWebhooks,
   getIncomingWebhookById,
@@ -583,5 +590,88 @@ describe('POST /api/webhooks/incoming/:id/receive — signature', () => {
       baseEnv,
     );
     expect(res.status).toBe(200);
+  });
+});
+
+// =====================================================
+// POST /api/webhooks/outgoing/:id/test — テスト送信
+// =====================================================
+
+describe('POST /api/webhooks/outgoing/:id/test', () => {
+  const mockDeliver = deliverOutgoingWebhook as unknown as {
+    mockResolvedValue: (v: unknown) => void;
+    mockRejectedValue: (v: unknown) => void;
+    mock: { calls: unknown[][] };
+  };
+
+  test('存在しないIDは404', async () => {
+    (getOutgoingWebhookById as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(
+      null,
+    );
+    const app = setupApp();
+    const res = await app.request('/api/webhooks/outgoing/nope/test', { method: 'POST' }, baseEnv);
+    expect(res.status).toBe(404);
+  });
+
+  test('宛先が成功したら ok:true を返す', async () => {
+    (getOutgoingWebhookById as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(
+      { id: 'wh-1', url: 'https://hooks.slack.com/services/T1/B2/x', secret: VALID_SECRET, is_active: 1 },
+    );
+    mockDeliver.mockResolvedValue({ kind: 'sent', slack: true, status: 200, ok: true, body: 'ok' });
+
+    const app = setupApp();
+    const res = await app.request('/api/webhooks/outgoing/wh-1/test', { method: 'POST' }, baseEnv);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { success: boolean; data: Record<string, unknown> };
+    expect(json.success).toBe(true);
+    expect(json.data).toMatchObject({ sent: true, slack: true, ok: true, isActive: true });
+  });
+
+  test('宛先が失敗しても200で返し、宛先の応答をそのまま載せる', async () => {
+    (getOutgoingWebhookById as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(
+      { id: 'wh-1', url: 'https://hooks.slack.com/services/T1/B2/x', secret: VALID_SECRET, is_active: 0 },
+    );
+    mockDeliver.mockResolvedValue({
+      kind: 'sent',
+      slack: true,
+      status: 404,
+      ok: false,
+      body: 'no_team',
+    });
+
+    const app = setupApp();
+    const res = await app.request('/api/webhooks/outgoing/wh-1/test', { method: 'POST' }, baseEnv);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { data: Record<string, unknown> };
+    // 無効化中でもテスト送信はできる。画面側が注意を出せるよう isActive を返す
+    expect(json.data).toMatchObject({ ok: false, status: 404, body: 'no_team', isActive: false });
+  });
+
+  test('宛先に到達できない（fetchが例外）ときも200で理由を返す', async () => {
+    (getOutgoingWebhookById as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(
+      { id: 'wh-1', url: 'https://hooks.slack.com/services/T1/B2/x', secret: VALID_SECRET, is_active: 1 },
+    );
+    mockDeliver.mockRejectedValue(new Error('network down'));
+
+    const app = setupApp();
+    const res = await app.request('/api/webhooks/outgoing/wh-1/test', { method: 'POST' }, baseEnv);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { data: Record<string, unknown> };
+    expect(json.data.ok).toBe(false);
+    expect(String(json.data.body)).toContain('network down');
+  });
+
+  test('本番と同じ配送関数に、テスト用の疑似イベントで渡す', async () => {
+    (getOutgoingWebhookById as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(
+      { id: 'wh-1', url: 'https://hooks.slack.com/services/T1/B2/x', secret: VALID_SECRET, is_active: 1 },
+    );
+    mockDeliver.mockResolvedValue({ kind: 'sent', slack: true, status: 200, ok: true, body: 'ok' });
+
+    const app = setupApp();
+    await app.request('/api/webhooks/outgoing/wh-1/test', { method: 'POST' }, baseEnv);
+
+    const call = mockDeliver.mock.calls[0];
+    expect(call[2]).toBe('test_notification');
+    expect(call[4]).toMatchObject({ captureBody: true, displayName: null });
   });
 });
