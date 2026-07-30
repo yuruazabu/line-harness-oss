@@ -83,3 +83,44 @@ bucket_name = "line-harness-images"
 
 [env.production.triggers]
 crons = ["*/5 * * * *", "0 */6 * * *"]
+
+# ═══════════════════════════════════════════════════════════════
+# ゆる麻布ラウンジ / salonkit連携インスタンス（fork運用・2026-07-30〜）
+#
+# 使い方:
+#   CLOUDFLARE_ENV=yurul pnpm --filter worker build
+#   npx wrangler deploy --env yurul
+#
+# デプロイ済み Worker の実測値と完全一致させること（wrangler versions view で確認）。
+# 環境ブロックは非継承キーを全部書く必要がある（name / assets / d1 / r2 / triggers / vars）。
+#   - name を省略すると line-harness-yurul になってしまうので必須
+#   - vars はこちらも本番に1つも無いので置かない
+#   - カスタムドメインは無し（workers.dev のみ）
+# ═══════════════════════════════════════════════════════════════
+[env.yurul]
+name = "line"
+account_id = "ec960401855b592380bfc8588c7b5faf"
+workers_dev = true
+compatibility_flags = ["nodejs_compat"]
+# routes を空で明示上書きするのは必須。
+# 省略するとトップレベルの routes（ゆる麻布の custom domain line.yuruazabu.net）が
+# この環境に継承され、デプロイでゆる麻布のドメインをラウンジ Worker に付け替えてしまう。
+# 2026-07-30 に生成設定を確認して発覚。ラウンジは workers.dev のみで運用。
+routes = []
+
+[env.yurul.assets]
+directory = "dist/client"
+binding = "ASSETS"
+run_worker_first = true
+
+[[env.yurul.d1_databases]]
+binding = "DB"
+database_name = "line"
+database_id = "cb49c8f7-49e5-4034-8759-d22372421ea6"
+
+[[env.yurul.r2_buckets]]
+binding = "IMAGES"
+bucket_name = "line-images"
+
+[env.yurul.triggers]
+crons = ["*/5 * * * *", "0 */6 * * *"]
