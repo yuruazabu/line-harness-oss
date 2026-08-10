@@ -124,3 +124,43 @@ bucket_name = "line-images"
 
 [env.yurul.triggers]
 crons = ["*/5 * * * *", "0 */6 * * *"]
+
+# ═══════════════════════════════════════════════════════════════
+# hataraki / line.hataraki-joshi.com インスタンス（fork運用・2026-08-10〜）
+#
+# 使い方:
+#   CLOUDFLARE_ENV=hataraki pnpm --filter worker build
+#   npx wrangler deploy --env hataraki
+#
+# Cloudflare アカウントは X, Inc.（hataraki-joshi.com のゾーンがここにあるため。
+# Custom Domain は Worker と同一アカウント必須）。
+# 環境ブロックは非継承キーを全部書く必要がある（name / assets / d1 / r2 / triggers）。
+#   - vars は他環境と同じく置かない（self-update route を不活性に保つ）
+#   - routes はこの環境の custom domain を明示。省略するとトップレベルの
+#     ゆる麻布ドメインを継承して奪ってしまう（yurul と同じ落とし穴）
+# ═══════════════════════════════════════════════════════════════
+[env.hataraki]
+name = "line-hataraki"
+account_id = "224b353bf179e83ea2ed688601a5bcce"
+workers_dev = true
+compatibility_flags = ["nodejs_compat"]
+routes = [
+  { pattern = "line.hataraki-joshi.com", custom_domain = true }
+]
+
+[env.hataraki.assets]
+directory = "dist/client"
+binding = "ASSETS"
+run_worker_first = true
+
+[[env.hataraki.d1_databases]]
+binding = "DB"
+database_name = "line-hataraki"
+database_id = "112deee0-2134-4f29-8345-33419ea39248"
+
+[[env.hataraki.r2_buckets]]
+binding = "IMAGES"
+bucket_name = "line-hataraki-images"
+
+[env.hataraki.triggers]
+crons = ["*/5 * * * *", "0 */6 * * *"]
