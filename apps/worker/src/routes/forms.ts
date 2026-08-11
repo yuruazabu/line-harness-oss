@@ -11,7 +11,8 @@ import {
   jstNow,
 } from '@line-crm/db';
 import { getFriendByLineUserId, getFriendById } from '@line-crm/db';
-import { addTagToFriend, enrollFriendInScenario } from '@line-crm/db';
+import { enrollFriendInScenario } from '@line-crm/db';
+import { attachTagAndFireSideEffects } from '../services/friend-tag-attach.js';
 import type {
   Form as DbForm,
   FormSubmission as DbFormSubmission,
@@ -448,8 +449,11 @@ forms.post('/api/forms/:id/submit', async (c) => {
       }
 
       // Add tag
+      // attachTagAndFireSideEffects: 素の addTagToFriend と違い、tag_added シナリオ
+      // enrollment と tag_change イベント (automation/webhook/scoring) を発火する。
+      // フォーム回答も自動経路なので booking auto-tag と同じくこの helper を通す。
       if (form.on_submit_tag_id) {
-        sideEffects.push(addTagToFriend(db, friendId, form.on_submit_tag_id));
+        sideEffects.push(attachTagAndFireSideEffects(db, friendId, form.on_submit_tag_id));
       }
 
       // Enroll in scenario
