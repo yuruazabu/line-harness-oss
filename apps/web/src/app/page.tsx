@@ -5,12 +5,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
-
-// 「LINE で体験する」バナーの遷移先。upstream はここに
-// https://your-worker.your-subdomain.workers.dev を直書きしており、どのインストールでも
-// リンクが壊れていた。他ページ (inflow-links/page.tsx など) と同じくビルド時の
-// NEXT_PUBLIC_API_URL から組み立てる。未設定ならバナーを出さない。
-const WORKER_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
+import { useApiBase } from '@/lib/runtime-config'
 
 const ccPrompts = [
   {
@@ -79,6 +74,11 @@ function StatCard({ title, value, loading, icon, href, accentColor = '#06C755' }
 
 export default function DashboardPage() {
   const { selectedAccountId, selectedAccount } = useAccount()
+  // 「LINE で体験する」バナーの遷移先。upstream はここに
+  // https://your-worker.your-subdomain.workers.dev を直書きしており、どのインストールでも
+  // リンクが壊れていた。他ページ (inflow-links/page.tsx など) と同じく実行時に
+  // 解決した API base から組み立てる。未解決ならバナーを出さない。
+  const apiBase = useApiBase()
   const [stats, setStats] = useState<DashboardStats>({
     friendCount: null,
     activeScenarioCount: null,
@@ -158,9 +158,9 @@ export default function DashboardPage() {
       )}
 
       {/* Demo banner */}
-      {WORKER_BASE && (
+      {apiBase && (
         <a
-          href={`${WORKER_BASE}/auth/line?ref=dashboard`}
+          href={`${apiBase}/auth/line?ref=dashboard`}
           target="_blank"
           rel="noopener noreferrer"
           className="block mb-6 p-4 rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 transition-colors"

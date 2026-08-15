@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { api, fetchApi } from '@/lib/api'
 import Header from '@/components/layout/header'
 import { useAccount } from '@/contexts/account-context'
+import { useApiBase } from '@/lib/runtime-config'
 import type { EntryRoute, TrafficPool, Scenario, Tag } from '@line-crm/shared'
 import EditRouteModal from './_components/edit-route-modal'
 
@@ -51,10 +52,9 @@ interface RefDetail {
   friends: RefFriend[]
 }
 
-const WORKER_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
-
 export default function InflowLinksPage() {
   const { selectedAccountId } = useAccount()
+  const apiBase = useApiBase()
   const [routes, setRoutes] = useState<EntryRoute[]>([])
   const [pools, setPools] = useState<TrafficPool[]>([])
   const [scenarios, setScenarios] = useState<Scenario[]>([])
@@ -152,7 +152,7 @@ export default function InflowLinksPage() {
   }, [selectedAccountId])
 
   const onCopy = async (refCode: string, id: string) => {
-    const url = `${WORKER_BASE}/r/${refCode}`
+    const url = `${apiBase}/r/${refCode}`
     try {
       await navigator.clipboard.writeText(url)
       setCopiedId(id)

@@ -5,10 +5,13 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import Header from '@/components/layout/header'
+import { useApiBase } from '@/lib/runtime-config'
 import type { EntryRoute, EntryRouteFunnel } from '@line-crm/shared'
 
 export default function InflowLinkDetailPage() {
   const searchParams = useSearchParams()
+  // Hooks must run before the early returns below.
+  const apiBase = useApiBase()
   const id = searchParams.get('id') ?? ''
   const [route, setRoute] = useState<EntryRoute | null>(null)
   const [funnel, setFunnel] = useState<EntryRouteFunnel | null>(null)
@@ -41,7 +44,7 @@ export default function InflowLinkDetailPage() {
     )
   }
 
-  const url = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/r/${route.refCode}`
+  const url = `${apiBase}/r/${route.refCode}`
 
   return (
     <div>

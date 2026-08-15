@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useApiBase } from '@/lib/runtime-config'
 
 interface Props {
   liffId: string | null
@@ -11,17 +12,11 @@ interface Props {
 }
 
 // Worker base URL for webhook / OAuth / LIFF endpoint registration.
-// In production this is something like https://your-worker.your-subdomain.workers.dev.
-// We derive it from NEXT_PUBLIC_API_URL because the admin UI already requires
-// that env var (build fails without it — see apps/web/src/lib/api.ts).
-function workerBase(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL
-  if (!url) return ''
-  return url.replace(/\/$/, '')
-}
-
+// In production this is something like https://your-worker.your-subdomain.workers.dev
+// (per-tenant install) or https://<tenant>.<base-domain> (shared admin).
+// Resolved via useApiBase() so it stays hydration-safe on the shared build.
 export default function AccountSetupUrls({ liffId, heading }: Props) {
-  const base = workerBase()
+  const base = useApiBase().replace(/\/$/, '')
   const webhookUrl = base ? `${base}/webhook` : ''
   const callbackUrl = base ? `${base}/auth/callback` : ''
   // For multi-account, every LIFF endpoint URL must include `?liffId=` so the

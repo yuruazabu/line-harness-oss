@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { requireApiBase } from '@/lib/runtime-config'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL!
 // self-update を構成した環境 (create-line-harness セットアップ) でのみ設定される。
 // 未設定 = 自動アップデート非構成環境なので、この画面は fetch せず案内のみ表示する。
 const ADMIN_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY
@@ -27,7 +27,8 @@ type LoadState =
   | { kind: 'error'; message: string }
 
 async function fetchHistory(adminKey: string): Promise<Row[]> {
-  const r = await fetch(`${API_URL}/admin/update/history`, {
+  // API base は呼び出し時に解決する (shared admin ではテナントごとに変わるため)。
+  const r = await fetch(`${requireApiBase()}/admin/update/history`, {
     headers: { 'x-admin-api-key': adminKey },
   })
   if (!r.ok) throw new Error(`history fetch ${r.status}`)

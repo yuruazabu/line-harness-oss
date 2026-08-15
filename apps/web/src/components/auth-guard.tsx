@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { getApiBase, storageKey } from '@/lib/runtime-config'
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -20,14 +21,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const checkSession = async () => {
       try {
         localStorage.removeItem('lh_api_key')
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL
+        // Resolved at call time: baked URL on per-tenant installs, tenant
+        // subdomain on the shared admin. Unresolved (no tenant picked yet)
+        // means we cannot have a session — treat as unauthenticated.
+        const apiUrl = getApiBase()
+        if (!apiUrl) throw new Error('unauthenticated')
         const res = await fetch(`${apiUrl}/api/auth/session`, { credentials: 'include' })
         if (!res.ok) throw new Error('unauthenticated')
         const data = await res.json()
         if (!data?.success || !data?.data) throw new Error('unauthenticated')
-        if (data.data.name) localStorage.setItem('lh_staff_name', data.data.name)
-        if (data.data.role) localStorage.setItem('lh_staff_role', data.data.role)
-        if (data.csrfToken) localStorage.setItem('lh_csrf', data.csrfToken)
+        if (data.data.name) localStorage.setItem(storageKey('lh_staff_name'), data.data.name)
+        if (data.data.role) localStorage.setItem(storageKey('lh_staff_role'), data.data.role)
+        if (data.csrfToken) localStorage.setItem(storageKey('lh_csrf'), data.csrfToken)
         if (!cancelled) setChecked(true)
       } catch {
         if (!cancelled) router.replace('/login')

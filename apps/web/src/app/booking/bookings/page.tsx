@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/header'
 import { bookingApi, type BookingRequest } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
+import { useApiBase } from '@/lib/runtime-config'
 
 const STATUS_TABS: Array<{ key: string; label: string }> = [
   { key: 'requested', label: '未承認' },
@@ -70,7 +71,7 @@ export default function BookingsPage() {
   // `liff.line.me` を直貼りすると OpenChat / IG DM 等で削除されるため、
   // LINE 内配信も SNS 配信もこの 1 本で完結させる。/o は LINE 内 UA でも
   // 「LINEで開く」ボタン経由で Universal Link → LIFF を起動する。
-  const workerBase = process.env.NEXT_PUBLIC_API_URL ?? ''
+  const workerBase = useApiBase()
   const shareUrl = workerBase && liffId
     ? `${workerBase}/o?liffId=${encodeURIComponent(liffId)}&page=salon-book`
     : null

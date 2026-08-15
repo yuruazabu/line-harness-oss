@@ -7,6 +7,7 @@ import { useAccount } from '@/contexts/account-context'
 import type { AccountWithStats } from '@/contexts/account-context'
 import { countryFlag } from '@/lib/country-flag'
 import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
+import { getApiBase, storageKey } from '@/lib/runtime-config'
 
 const appVersion = process.env.APP_VERSION || '0.0.0'
 const appCommitSha = process.env.APP_COMMIT_SHA || 'local'
@@ -204,8 +205,8 @@ export default function Sidebar() {
   const [staffRole, setStaffRole] = useState<string | null>(null)
 
   useEffect(() => {
-    setStaffName(localStorage.getItem('lh_staff_name'))
-    setStaffRole(localStorage.getItem('lh_staff_role'))
+    setStaffName(localStorage.getItem(storageKey('lh_staff_name')))
+    setStaffRole(localStorage.getItem(storageKey('lh_staff_role')))
   }, [])
 
   // 未対応件数 polling — メニュー項目にバッジを出す。5 分間隔。
@@ -336,7 +337,7 @@ export default function Sidebar() {
         <button
           onClick={async () => {
             try {
-              const apiUrl = process.env.NEXT_PUBLIC_API_URL
+              const apiUrl = getApiBase()
               if (apiUrl) {
                 await fetch(`${apiUrl}/api/auth/logout`, {
                   method: 'POST',
@@ -347,9 +348,9 @@ export default function Sidebar() {
               // Local cleanup still logs the browser out if the network call fails.
             }
             localStorage.removeItem('lh_api_key')
-            localStorage.removeItem('lh_csrf')
-            localStorage.removeItem('lh_staff_name')
-            localStorage.removeItem('lh_staff_role')
+            localStorage.removeItem(storageKey('lh_csrf'))
+            localStorage.removeItem(storageKey('lh_staff_name'))
+            localStorage.removeItem(storageKey('lh_staff_role'))
             window.location.href = '/login'
           }}
           className="flex items-center gap-2 text-xs text-gray-400 hover:text-red-500 transition-colors"

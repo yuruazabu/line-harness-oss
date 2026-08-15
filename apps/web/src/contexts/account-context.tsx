@@ -3,7 +3,10 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '@/lib/api'
+import { storageKey } from '@/lib/runtime-config'
 
+// storageKey() で実行時にテナント名前空間化する (共有管理画面でテナント間の
+// 選択アカウントが混ざらないように)。
 const STORAGE_KEY = 'lh_selected_account'
 
 export interface AccountWithStats {
@@ -44,7 +47,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const setSelectedAccountId = useCallback((id: string) => {
     setSelectedAccountIdState(id)
     try {
-      localStorage.setItem(STORAGE_KEY, id)
+      localStorage.setItem(storageKey(STORAGE_KEY), id)
     } catch {
       // localStorage unavailable
     }
@@ -63,7 +66,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           // Restore from localStorage or default to first
           let stored: string | null = null
           try {
-            stored = localStorage.getItem(STORAGE_KEY)
+            stored = localStorage.getItem(storageKey(STORAGE_KEY))
           } catch {
             // localStorage unavailable
           }

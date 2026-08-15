@@ -84,13 +84,10 @@ export type BroadcastInsight = {
   fetchedAt?: string | null
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-if (!API_URL) {
-  throw new Error(
-    'NEXT_PUBLIC_API_URL is not set. Build cannot proceed without a valid API URL. ' +
-    'Set it in .env.production (local) or GitHub Secrets (CI).'
-  )
-}
+// API base is resolved at call time (shared-admin builds have no build-time
+// URL; per-tenant installs keep the baked NEXT_PUBLIC_API_URL). See
+// runtime-config.ts for the resolution order.
+import { requireApiBase, storageKey } from './runtime-config'
 
 /**
  * Read the CSRF token issued at login. The session credential itself lives in
@@ -102,14 +99,16 @@ if (!API_URL) {
  */
 export const CSRF_STORAGE_KEY = 'lh_csrf'
 
+// storageKey() namespaces the key per tenant on a shared admin origin so one
+// tenant's CSRF token is never sent to another tenant's API.
 export function getCsrfToken(): string {
   if (typeof window === 'undefined') return ''
-  return localStorage.getItem(CSRF_STORAGE_KEY) || ''
+  return localStorage.getItem(storageKey(CSRF_STORAGE_KEY)) || ''
 }
 
 export function setCsrfToken(token: string | undefined | null): void {
   if (typeof window === 'undefined' || !token) return
-  localStorage.setItem(CSRF_STORAGE_KEY, token)
+  localStorage.setItem(storageKey(CSRF_STORAGE_KEY), token)
 }
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
@@ -121,7 +120,7 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     const token = getCsrfToken()
     if (token) csrfHeaders['X-CSRF-Token'] = token
   }
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${requireApiBase()}${path}`, {
     ...options,
     // Send the HttpOnly session cookie with every request.
     credentials: 'include',
@@ -1211,7 +1210,7 @@ export const api = {
     // クッキーや Authorization が必要 — 代わりに admin が cache-busting できる
     // タイムスタンプを付けるパターンで利用)。
     externalImageUrl: (richMenuId: string, accountId: string) =>
-      `${API_URL}/api/rich-menu-groups/external/${richMenuId}/image?accountId=${encodeURIComponent(accountId)}`,
+      `${requireApiBase()}/api/rich-menu-groups/external/${richMenuId}/image?accountId=${encodeURIComponent(accountId)}`,
 
     applyToTag: (
       groupId: string,
@@ -1230,7 +1229,7 @@ export const api = {
     uploadImage: async (groupId: string, pageId: string, file: File) => {
       const csrf = getCsrfToken();
       const res = await fetch(
-        `${API_URL}/api/rich-menu-groups/${groupId}/pages/${pageId}/image`,
+        `${requireApiBase()}/api/rich-menu-groups/${groupId}/pages/${pageId}/image`,
         {
           method: 'POST',
           credentials: 'include',
@@ -1258,7 +1257,7 @@ export const api = {
     //   v1 ではドラフト編集中のプレビュー用 = 認証バイパスでも実害は低いので、
     //   後続 PR で worker 側を whitelist 化する想定。
     imageUrl: (key: string) =>
-      `${API_URL}/api/rich-menu-images/${encodeURIComponent(key)}`,
+      `${requireApiBase()}/api/rich-menu-images/${encodeURIComponent(key)}`,
   },
   messageTemplates: {
     list: () =>

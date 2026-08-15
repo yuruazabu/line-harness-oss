@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { requireApiBase, storageKey } from '@/lib/runtime-config'
 
 export default function LoginPage() {
   const [apiKey, setApiKey] = useState('')
@@ -14,9 +15,13 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
-      if (!apiUrl) {
-        setError('NEXT_PUBLIC_API_URL is not set in build env')
+      // Resolved at submit time: baked URL on per-tenant installs, tenant
+      // subdomain on the shared admin. Throws when neither is available.
+      let apiUrl: string
+      try {
+        apiUrl = requireApiBase()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'API URL is not resolved')
         setLoading(false)
         return
       }
@@ -34,12 +39,12 @@ export default function LoginPage() {
         try {
           const loginData = await res.json()
           if (loginData.success && loginData.data) {
-            localStorage.setItem('lh_staff_name', loginData.data.name)
-            localStorage.setItem('lh_staff_role', loginData.data.role)
+            localStorage.setItem(storageKey('lh_staff_name'), loginData.data.name)
+            localStorage.setItem(storageKey('lh_staff_role'), loginData.data.role)
           }
           // Cache the CSRF token for mutating requests (double-submit).
           if (loginData.csrfToken) {
-            localStorage.setItem('lh_csrf', loginData.csrfToken)
+            localStorage.setItem(storageKey('lh_csrf'), loginData.csrfToken)
           }
         } catch {
           // Profile / CSRF caching is best-effort.

@@ -6,6 +6,7 @@ import Header from '@/components/layout/header'
 import { api, bookingApi, type BookingMenu } from '@/lib/api'
 import type { Tag } from '@line-crm/shared'
 import { useAccount } from '@/contexts/account-context'
+import { useApiBase } from '@/lib/runtime-config'
 
 const EMPTY: Partial<BookingMenu> = {
   name: '',
@@ -31,7 +32,7 @@ export default function MenusPage() {
   const [tags, setTags] = useState<Tag[]>([])
 
   const liffId = selectedAccount?.liffId ?? null
-  const workerBase = process.env.NEXT_PUBLIC_API_URL ?? ''
+  const workerBase = useApiBase()
 
   async function copyMenuUrl(menuId: string) {
     if (!workerBase || !liffId) return
