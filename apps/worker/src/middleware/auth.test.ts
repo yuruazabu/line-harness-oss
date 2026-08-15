@@ -6,12 +6,40 @@ import { resolveCorsOrigin } from './admin-auth-config.js';
 import { adminAuth } from '../routes/admin-auth.js';
 import type { Env } from '../index.js';
 
-vi.mock('@line-crm/db', () => ({
-  getStaffByApiKey: vi.fn(async (_db: unknown, token: string) => {
-    if (token !== 'staff-key') return null;
-    return { id: 'staff-1', name: 'Staff One', role: 'admin' };
-  }),
-}));
+vi.mock('@line-crm/db', () => {
+  // In-memory stand-in for the admin_sessions table (opaque-token sessions).
+  const sessions = new Map<string, { id: string; name: string; role: string }>();
+  let seq = 0;
+  return {
+    getStaffByApiKey: vi.fn(async (_db: unknown, token: string) => {
+      if (token !== 'staff-key') return null;
+      return { id: 'staff-1', name: 'Staff One', role: 'admin' };
+    }),
+    createAdminSession: vi.fn(
+      async (_db: unknown, staff: { id: string; name: string; role: string }) => {
+        const token = `lhs_test_${seq++}`;
+        sessions.set(token, staff);
+        return token;
+      },
+    ),
+    getAdminSession: vi.fn(async (_db: unknown, token: string) => {
+      const staff = sessions.get(token);
+      if (!staff) return null;
+      return {
+        token_hash: 'test-hash',
+        staff_id: staff.id,
+        staff_name: staff.name,
+        staff_role: staff.role,
+        expires_at: '9999-12-31T00:00:00.000Z',
+        created_at: '2026-01-01T00:00:00.000Z',
+      };
+    }),
+    deleteAdminSession: vi.fn(async (_db: unknown, token: string) => {
+      sessions.delete(token);
+    }),
+    purgeExpiredAdminSessions: vi.fn(async () => {}),
+  };
+});
 
 const PAGES = 'https://your-admin.pages.dev';
 const WORKERS = 'https://your-worker.your-subdomain.workers.dev';
@@ -76,7 +104,9 @@ describe('admin login cookie attributes', () => {
     expect(body.csrfToken).toBeTruthy();
 
     const session = cookieFor(res, 'lh_admin_session') ?? '';
-    expect(session).toContain('lh_admin_session=staff-key');
+    // Opaque session token — the API key itself must never appear in the cookie.
+    expect(session).toContain('lh_admin_session=lhs_');
+    expect(session).not.toContain('staff-key');
     expect(session).toContain('HttpOnly');
     expect(session).toContain('Secure');
     expect(session).toContain('SameSite=None');

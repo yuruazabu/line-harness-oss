@@ -40,12 +40,25 @@ function serializeLineAccount(row: DbLineAccount) {
   };
 }
 
+/**
+ * Secrets never leave the API in readable form. The admin UI treats these
+ * fields as write-only (empty = keep current), so a masked echo is enough to
+ * show "configured" without turning every authenticated GET into a
+ * credential-exfiltration endpoint. Last 4 chars help operators confirm which
+ * credential is set when rotating.
+ */
+function maskSecret(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.length > 8 ? `••••${value.slice(-4)}` : '••••';
+}
+
 function serializeLineAccountFull(row: DbLineAccount) {
   return {
     ...serializeLineAccount(row),
-    channelAccessToken: row.channel_access_token,
-    channelSecret: row.channel_secret,
-    loginChannelSecret: row.login_channel_secret,
+    channelAccessToken: maskSecret(row.channel_access_token),
+    channelSecret: maskSecret(row.channel_secret),
+    loginChannelSecret: maskSecret(row.login_channel_secret),
+    secretsMasked: true,
   };
 }
 

@@ -167,8 +167,8 @@ describe('POST /api/line-accounts', () => {
     expect(body.success).toBe(true);
     expect(body.data.loginChannelId).toBe('2009624792');
     expect(body.data.liffId).toBe('2009624792-XXXX');
-    // serializeLineAccountFull exposes loginChannelSecret to owner-only POST response
-    expect(body.data.loginChannelSecret).toBe('login-secret');
+    // Secrets are masked in every response (write-only fields in the UI).
+    expect(body.data.loginChannelSecret).toBe('\u2022\u2022\u2022\u2022cret');
   });
 
   test('omits loginChannelId/etc when not provided (stores null)', async () => {
