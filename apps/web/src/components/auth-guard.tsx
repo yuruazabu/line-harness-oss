@@ -18,6 +18,26 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // Verify the session via the HttpOnly cookie. /api/auth/session returns the
     // staff identity and refreshes the CSRF token if it was lost (e.g. reload).
+    //
+    // A thrown fetch (TypeError) is a NETWORK failure, not "unauthenticated" —
+    // treating it as a logout kicks users with a valid session to /login on a
+    // transient connection hiccup (first request to a cold host, flaky mobile
+    // networks). Retry once before giving up; only an explicit non-OK status
+    // or a malformed body means the session is actually invalid.
+    const fetchSession = async (apiUrl: string): Promise<Response> => {
+      const delays = [0, 700, 2000]
+      let lastErr: unknown
+      for (const delay of delays) {
+        if (delay) await new Promise((r) => setTimeout(r, delay))
+        try {
+          return await fetch(`${apiUrl}/api/auth/session`, { credentials: 'include' })
+        } catch (err) {
+          lastErr = err
+        }
+      }
+      throw lastErr
+    }
+
     const checkSession = async () => {
       try {
         localStorage.removeItem('lh_api_key')
@@ -26,7 +46,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         // means we cannot have a session — treat as unauthenticated.
         const apiUrl = getApiBase()
         if (!apiUrl) throw new Error('unauthenticated')
-        const res = await fetch(`${apiUrl}/api/auth/session`, { credentials: 'include' })
+        const res = await fetchSession(apiUrl)
         if (!res.ok) throw new Error('unauthenticated')
         const data = await res.json()
         if (!data?.success || !data?.data) throw new Error('unauthenticated')
