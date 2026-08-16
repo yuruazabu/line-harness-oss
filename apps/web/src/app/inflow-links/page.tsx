@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { api, fetchApi } from '@/lib/api'
 import Header from '@/components/layout/header'
 import { useAccount } from '@/contexts/account-context'
-import { useApiBase } from '@/lib/runtime-config'
+import { usePublicBase } from '@/lib/runtime-config'
 import type { EntryRoute, TrafficPool, Scenario, Tag } from '@line-crm/shared'
 import EditRouteModal from './_components/edit-route-modal'
 
@@ -54,7 +54,7 @@ interface RefDetail {
 
 export default function InflowLinksPage() {
   const { selectedAccountId } = useAccount()
-  const apiBase = useApiBase()
+  const apiBase = usePublicBase()
   const [routes, setRoutes] = useState<EntryRoute[]>([])
   const [pools, setPools] = useState<TrafficPool[]>([])
   const [scenarios, setScenarios] = useState<Scenario[]>([])

@@ -48,11 +48,34 @@ function resolveTenant(): string | null {
 }
 
 /**
- * Resolve the API base URL. Returns '' during prerender (no window) when no
- * build-time URL exists — callers that render URLs should go through
- * `useApiBase()` instead to avoid hydration mismatches.
+ * API base for FETCH calls.
+ *
+ * Shared admin: a same-origin path prefix (`/t/<tenant>`), not the tenant's own
+ * origin. The admin host proxies `/t/<tenant>/*` to that tenant's Worker, so the
+ * browser only ever talks to one origin. That keeps the session cookie
+ * first-party (no SameSite=None, no CORS preflight) and therefore working in
+ * Safari/Firefox, which partition or block cross-site cookies.
+ *
+ * Per-tenant install: the baked NEXT_PUBLIC_API_URL, unchanged.
+ *
+ * Returns '' during prerender when neither is available — components that
+ * render URLs should use `usePublicBase()` (the tenant's real origin) instead.
  */
 export function getApiBase(): string {
+  if (TENANT_BASE_DOMAIN) {
+    const tenant = resolveTenant()
+    if (tenant) return `/t/${tenant}`
+  }
+  return BUILD_TIME_API_URL
+}
+
+/**
+ * Public origin of the tenant Worker — for URLs we SHOW to the operator so they
+ * can paste them into LINE Developers or hand them to end users (webhook,
+ * LIFF endpoint, tracking links, form URLs). These must be the tenant's real
+ * host, never the admin proxy path.
+ */
+export function getPublicBase(): string {
   if (TENANT_BASE_DOMAIN) {
     const tenant = resolveTenant()
     if (tenant) return `https://${tenant}.${TENANT_BASE_DOMAIN}`
@@ -97,13 +120,22 @@ export function storageKey(name: string): string {
 }
 
 /**
- * Hydration-safe API base for components that render URLs: '' on the server
- * pass and during the first client render, then the resolved value.
+ * Hydration-safe API base ('' on the server pass, resolved on the client).
+ * For displayed URLs use `usePublicBase()` — see getPublicBase().
  */
 export function useApiBase(): string {
   const [base, setBase] = useState(BUILD_TIME_API_URL)
   useEffect(() => {
     setBase(getApiBase())
+  }, [])
+  return base
+}
+
+/** Hydration-safe public origin of the tenant (for URLs shown to the user). */
+export function usePublicBase(): string {
+  const [base, setBase] = useState(BUILD_TIME_API_URL)
+  useEffect(() => {
+    setBase(getPublicBase())
   }, [])
   return base
 }

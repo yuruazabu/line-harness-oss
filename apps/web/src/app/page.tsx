@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
-import { useApiBase } from '@/lib/runtime-config'
+import { usePublicBase } from '@/lib/runtime-config'
 
 const ccPrompts = [
   {
@@ -78,7 +78,7 @@ export default function DashboardPage() {
   // https://your-worker.your-subdomain.workers.dev を直書きしており、どのインストールでも
   // リンクが壊れていた。他ページ (inflow-links/page.tsx など) と同じく実行時に
   // 解決した API base から組み立てる。未解決ならバナーを出さない。
-  const apiBase = useApiBase()
+  const apiBase = usePublicBase()
   const [stats, setStats] = useState<DashboardStats>({
     friendCount: null,
     activeScenarioCount: null,
