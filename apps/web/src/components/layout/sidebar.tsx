@@ -7,6 +7,7 @@ import { useAccount } from '@/contexts/account-context'
 import type { AccountWithStats } from '@/contexts/account-context'
 import { countryFlag } from '@/lib/country-flag'
 import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
+import { withBasePath } from '@/lib/base-path'
 
 const appVersion = process.env.APP_VERSION || '0.0.0'
 const appCommitSha = process.env.APP_COMMIT_SHA || 'local'
@@ -351,7 +352,7 @@ export default function Sidebar() {
             localStorage.removeItem('lh_csrf')
             localStorage.removeItem('lh_staff_name')
             localStorage.removeItem('lh_staff_role')
-            window.location.href = '/login'
+            window.location.href = withBasePath('/login')
           }}
           className="flex items-center gap-2 text-xs text-gray-400 hover:text-red-500 transition-colors"
         >

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
+import Link from 'next/link'
 
 interface TestSendSectionProps {
   broadcastId: string
@@ -45,7 +46,7 @@ export default function TestSendSection({ broadcastId, accountId, disabled }: Te
       {recipients.length === 0 ? (
         <p className="text-xs text-gray-400">
           テスト送信先が未設定です。
-          <a href="/accounts" className="text-blue-500 hover:underline ml-1">アカウント設定</a>
+          <Link href="/accounts" className="text-blue-500 hover:underline ml-1">アカウント設定</Link>
           から設定してください。
         </p>
       ) : (

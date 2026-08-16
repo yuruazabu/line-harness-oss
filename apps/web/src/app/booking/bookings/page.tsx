@@ -237,7 +237,7 @@ export default function BookingsPage() {
           ) : (
             <p className="text-xs text-amber-700">
               このアカウントには LIFF ID が未設定です。
-              <a href="/accounts" className="ml-1 underline">アカウント設定</a> で登録してください。
+              <Link href="/accounts" className="ml-1 underline">アカウント設定</Link> で登録してください。
             </p>
           )}
         </div>

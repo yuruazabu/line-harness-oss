@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { api } from '@/lib/api'
 import Header from '@/components/layout/header'
 import CcPromptButton from '@/components/cc-prompt-button'
+import { withBasePath } from '@/lib/base-path'
 
 type ActionStatus = 'idle' | 'confirming' | 'executing' | 'done' | 'error'
 
@@ -92,7 +93,7 @@ export default function EmergencyPage() {
             )
           }
         } else if (id === 'switch-account') {
-          window.location.href = '/health'
+          window.location.href = withBasePath('/health')
           return
         }
         updateAction(id, { status: 'done' })
