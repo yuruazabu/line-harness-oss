@@ -115,9 +115,16 @@ const state: FormState = {
 let _replierPoolReady = false;
 
 function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+  // textContent -> innerHTML escapes & < > but NOT quotes, and the result of
+  // this function is interpolated into double-quoted attribute values as well
+  // as element content. Escape quotes too so a value containing `"` cannot
+  // break out of the attribute and add an event handler.
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function apiCall(path: string, options?: RequestInit): Promise<Response> {
