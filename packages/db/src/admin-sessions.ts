@@ -75,3 +75,19 @@ export async function purgeExpiredAdminSessions(db: D1Database): Promise<void> {
     .bind(new Date().toISOString())
     .run();
 }
+
+/**
+ * Revoke every session belonging to a staff member.
+ *
+ * Before opaque tokens the session cookie *was* the API key, so disabling a
+ * staff member, deleting them, or rotating their key logged them out
+ * immediately as a side effect. With a separate session store that link is
+ * gone, so those operations have to revoke explicitly — otherwise a disabled
+ * account keeps working until the cookie expires (up to 7 days).
+ */
+export async function deleteAdminSessionsForStaff(
+  db: D1Database,
+  staffId: string,
+): Promise<void> {
+  await db.prepare('DELETE FROM admin_sessions WHERE staff_id = ?').bind(staffId).run();
+}
