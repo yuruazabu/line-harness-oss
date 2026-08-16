@@ -11,13 +11,6 @@ import {
 } from '@line-crm/db';
 import type { LineAccount as DbLineAccount } from '@line-crm/db';
 import { requireRole } from '../middleware/role-guard.js';
-import {
-  detectFollowerImportCapability,
-  getFollowerImportState,
-  processFollowerImportStep,
-  startFollowerImport,
-} from '../services/follower-import.js';
-import type { FollowerImportClient } from '../services/follower-import.js';
 import type { Env } from '../index.js';
 
 const lineAccounts = new Hono<Env>();
@@ -47,12 +40,25 @@ function serializeLineAccount(row: DbLineAccount) {
   };
 }
 
+/**
+ * Secrets never leave the API in readable form. The admin UI treats these
+ * fields as write-only (empty = keep current), so a masked echo is enough to
+ * show "configured" without turning every authenticated GET into a
+ * credential-exfiltration endpoint. Last 4 chars help operators confirm which
+ * credential is set when rotating.
+ */
+function maskSecret(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.length > 8 ? `••••${value.slice(-4)}` : '••••';
+}
+
 function serializeLineAccountFull(row: DbLineAccount) {
   return {
     ...serializeLineAccount(row),
-    channelAccessToken: row.channel_access_token,
-    channelSecret: row.channel_secret,
-    loginChannelSecret: row.login_channel_secret,
+    channelAccessToken: maskSecret(row.channel_access_token),
+    channelSecret: maskSecret(row.channel_secret),
+    loginChannelSecret: maskSecret(row.login_channel_secret),
+    secretsMasked: true,
   };
 }
 
@@ -168,72 +174,6 @@ lineAccounts.get('/api/line-accounts/:id/follower-insight', async (c) => {
     return c.json({ success: false, error: 'Failed to fetch LINE follower insight' }, 502);
   }
 });
-
-// Existing-follower migration is an explicit, persisted, one-time job.
-// No cron polls LINE: connection/UI performs a one-item capability probe, then
-// operator-approved step requests advance the D1 cursor until completion.
-lineAccounts.get('/api/line-accounts/:id/follower-import', async (c) => {
-  const account = await getLineAccountById(c.env.DB, c.req.param('id')!);
-  if (!account) return c.json({ success: false, error: 'LINE account not found' }, 404);
-  const state = await getFollowerImportState(c.env.DB, account.id);
-  return c.json({ success: true, data: state });
-});
-
-lineAccounts.post(
-  '/api/line-accounts/:id/follower-import/detect',
-  requireRole('owner', 'admin'),
-  async (c) => {
-    try {
-      const account = await getLineAccountById(c.env.DB, c.req.param('id')!);
-      if (!account) return c.json({ success: false, error: 'LINE account not found' }, 404);
-      const client = new LineClient(account.channel_access_token);
-      const state = await detectFollowerImportCapability(
-        c.env.DB,
-        client as unknown as FollowerImportClient,
-        account.id,
-      );
-      return c.json({ success: true, data: state });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('follower import capability detection error:', message);
-      return c.json({ success: false, error: '利用可否の確認に失敗しました' }, 502);
-    }
-  },
-);
-
-lineAccounts.post(
-  '/api/line-accounts/:id/follower-import/start',
-  requireRole('owner', 'admin'),
-  async (c) => {
-    const account = await getLineAccountById(c.env.DB, c.req.param('id')!);
-    if (!account) return c.json({ success: false, error: 'LINE account not found' }, 404);
-    try {
-      const state = await startFollowerImport(c.env.DB, account.id);
-      return c.json({ success: true, data: state });
-    } catch (err) {
-      if (err instanceof Error && err.message === 'FOLLOWER_IMPORT_NOT_AVAILABLE') {
-        return c.json({ success: false, error: 'このアカウントでは既存友だち取得を利用できません' }, 409);
-      }
-      throw err;
-    }
-  },
-);
-
-lineAccounts.post(
-  '/api/line-accounts/:id/follower-import/step',
-  requireRole('owner', 'admin'),
-  async (c) => {
-    const account = await getLineAccountById(c.env.DB, c.req.param('id')!);
-    if (!account) return c.json({ success: false, error: 'LINE account not found' }, 404);
-    const client = new LineClient(account.channel_access_token);
-    const result = await processFollowerImportStep(
-      c.env.DB,
-      client as unknown as FollowerImportClient,
-      account.id,
-    );
-    return c.json({ success: true, data: result });
-  },
-);
 
 // Normalize optional string inputs from the UI:
 //   undefined → undefined (caller skips the column)
@@ -378,19 +318,6 @@ lineAccounts.post('/api/line-accounts', requireRole('owner'), async (c) => {
       ogDefaultImageUrl: normalizeOptionalString(body.ogDefaultImageUrl) ?? null,
       ogDefaultDescription: normalizeOptionalString(body.ogDefaultDescription) ?? null,
     });
-
-    // One read-only request at connection time records whether this account
-    // can use followers/ids. This never starts the migration and is non-fatal:
-    // a temporary LINE outage must not roll back account registration.
-    try {
-      await detectFollowerImportCapability(
-        c.env.DB,
-        new LineClient(account.channel_access_token) as unknown as FollowerImportClient,
-        account.id,
-      );
-    } catch (err) {
-      console.error('[line-accounts] follower import capability probe failed', err);
-    }
 
     // Auto-enroll new account into the 'main' traffic pool.
     // If migration 039 ran before any LINE accounts existed (fresh tenant),

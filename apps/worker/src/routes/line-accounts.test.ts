@@ -13,15 +13,11 @@ const dbMocks = {
   updateLineAccountFields: vi.fn(),
   updateLineAccountOrder: vi.fn(),
   deleteLineAccount: vi.fn(),
-  getAccountSetting: vi.fn(),
-  setAccountSetting: vi.fn(),
-  jstNow: vi.fn(() => '2026-08-10T12:00:00.000+09:00'),
 };
 vi.mock('@line-crm/db', () => dbMocks);
 
 const lineClientMocks = {
   getFollowersInsight: vi.fn(),
-  getFollowerIds: vi.fn(),
 };
 vi.mock('@line-crm/line-sdk', () => ({
   LineClient: vi.fn().mockImplementation(() => lineClientMocks),
@@ -83,11 +79,6 @@ const fakeAccount = {
 beforeEach(() => {
   for (const fn of Object.values(dbMocks)) fn.mockReset();
   lineClientMocks.getFollowersInsight.mockReset();
-  lineClientMocks.getFollowerIds.mockReset();
-  dbMocks.getAccountSetting.mockResolvedValue(null);
-  dbMocks.setAccountSetting.mockResolvedValue(undefined);
-  dbMocks.jstNow.mockReturnValue('2026-08-10T12:00:00.000+09:00');
-  lineClientMocks.getFollowerIds.mockResolvedValue({ userIds: [] });
 });
 
 describe('GET /api/line-accounts/:id/follower-insight', () => {
@@ -176,8 +167,8 @@ describe('POST /api/line-accounts', () => {
     expect(body.success).toBe(true);
     expect(body.data.loginChannelId).toBe('2009624792');
     expect(body.data.liffId).toBe('2009624792-XXXX');
-    // serializeLineAccountFull exposes loginChannelSecret to owner-only POST response
-    expect(body.data.loginChannelSecret).toBe('login-secret');
+    // Secrets are masked in every response (write-only fields in the UI).
+    expect(body.data.loginChannelSecret).toBe('\u2022\u2022\u2022\u2022cret');
   });
 
   test('omits loginChannelId/etc when not provided (stores null)', async () => {
