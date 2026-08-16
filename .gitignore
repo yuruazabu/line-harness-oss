@@ -17,6 +17,7 @@ dist-mcp/
 .dev.vars
 .dev.vars.*
 apps/web/out/
+apps/worker/dist-release/
 apps/worker/dist/
 .worktrees/
 .claude/worktrees/
