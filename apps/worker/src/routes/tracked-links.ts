@@ -249,13 +249,20 @@ function getAndroidPackage(url: string): string | null {
 }
 
 function buildAppRedirectHtml(destinationUrl: string): string {
-  const escaped = destinationUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  // These land inside a JS string literal in an inline <script>, not in an
+  // HTML attribute. HTML-escaping does not protect that context: a URL
+  // containing `</script>` terminates the script block no matter how the
+  // quotes are escaped. JSON.stringify produces a correctly escaped JS
+  // string literal (quotes included), and escaping `/` closes the
+  // `</script>` breakout.
+  const jsString = (v: string) => JSON.stringify(v).replace(/\//g, '\\/');
+  const escaped = jsString(destinationUrl);
   const androidPackage = getAndroidPackage(destinationUrl);
   // intent://path#Intent;scheme=https;package=com.xxx;S.browser_fallback_url=https://...;end
   const intentUrl = androidPackage
     ? `intent://${destinationUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=${androidPackage};S.browser_fallback_url=${encodeURIComponent(destinationUrl)};end`
     : null;
-  const intentEscaped = intentUrl ? intentUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
+  const intentEscaped = intentUrl ? jsString(intentUrl) : "''";
 
   return `<!DOCTYPE html>
 <html><head>
@@ -268,10 +275,10 @@ function buildAppRedirectHtml(destinationUrl: string): string {
 <script>
 (function(){
   var isAndroid = /Android/i.test(navigator.userAgent);
-  if(isAndroid && "${intentEscaped}"){
-    window.location.href="${intentEscaped}";
+  if(isAndroid && ${intentEscaped}){
+    window.location.href=${intentEscaped};
   } else {
-    window.location.href="${escaped}";
+    window.location.href=${escaped};
   }
 })();
 </script>
