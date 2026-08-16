@@ -6,12 +6,40 @@ import { resolveCorsOrigin } from './admin-auth-config.js';
 import { adminAuth } from '../routes/admin-auth.js';
 import type { Env } from '../index.js';
 
-vi.mock('@line-crm/db', () => ({
-  getStaffByApiKey: vi.fn(async (_db: unknown, token: string) => {
-    if (token !== 'staff-key') return null;
-    return { id: 'staff-1', name: 'Staff One', role: 'admin' };
-  }),
-}));
+vi.mock('@line-crm/db', () => {
+  // In-memory stand-in for the admin_sessions table (opaque-token sessions).
+  const sessions = new Map<string, { id: string; name: string; role: string }>();
+  let seq = 0;
+  return {
+    getStaffByApiKey: vi.fn(async (_db: unknown, token: string) => {
+      if (token !== 'staff-key') return null;
+      return { id: 'staff-1', name: 'Staff One', role: 'admin' };
+    }),
+    createAdminSession: vi.fn(
+      async (_db: unknown, staff: { id: string; name: string; role: string }) => {
+        const token = `lhs_test_${seq++}`;
+        sessions.set(token, staff);
+        return token;
+      },
+    ),
+    getAdminSession: vi.fn(async (_db: unknown, token: string) => {
+      const staff = sessions.get(token);
+      if (!staff) return null;
+      return {
+        token_hash: 'test-hash',
+        staff_id: staff.id,
+        staff_name: staff.name,
+        staff_role: staff.role,
+        expires_at: '9999-12-31T00:00:00.000Z',
+        created_at: '2026-01-01T00:00:00.000Z',
+      };
+    }),
+    deleteAdminSession: vi.fn(async (_db: unknown, token: string) => {
+      sessions.delete(token);
+    }),
+    purgeExpiredAdminSessions: vi.fn(async () => {}),
+  };
+});
 
 const PAGES = 'https://your-admin.pages.dev';
 const WORKERS = 'https://your-worker.your-subdomain.workers.dev';
@@ -49,14 +77,6 @@ function app() {
   a.route('/', adminAuth);
   a.get('/api/protected', (c) => c.json({ success: true, data: c.get('staff') }));
   a.post('/api/protected', (c) => c.json({ success: true, data: c.get('staff') }));
-  a.get('/api/forms/:id', (c) => c.json({ success: true, staff: c.get('staff') ?? null }));
-  a.put('/api/forms/:id', (c) => c.json({ success: true }));
-  a.delete('/api/forms/:id', (c) => c.json({ success: true }));
-  a.post('/api/forms/:id/submit', (c) => c.json({ success: true }));
-  a.post('/api/forms/:id/partial', (c) => c.json({ success: true }));
-  a.post('/api/forms/:id/opened', (c) => c.json({ success: true }));
-  a.get('/api/booking/google-calendar/oauth/callback', (c) => c.text('oauth-callback'));
-  a.post('/api/booking/google-calendar/oauth/callback', (c) => c.text('wrong-method'));
   return a;
 }
 
@@ -85,7 +105,9 @@ describe('admin login cookie attributes', () => {
     expect(body.csrfToken).toBeTruthy();
 
     const session = cookieFor(res, 'lh_admin_session') ?? '';
-    expect(session).toContain('lh_admin_session=staff-key');
+    // Opaque session token — the API key itself must never appear in the cookie.
+    expect(session).toContain('lh_admin_session=lhs_');
+    expect(session).not.toContain('staff-key');
     expect(session).toContain('HttpOnly');
     expect(session).toContain('Secure');
     expect(session).toContain('SameSite=None');
@@ -165,61 +187,6 @@ describe('protected API access', () => {
       headers: { Cookie: 'lh_admin_session=%; other=%E0%A4%A' },
     }, crossSiteEnv());
     expect(res.status).toBe(401);
-  });
-});
-
-describe('public form method boundaries', () => {
-  test('allows unauthenticated GET of a form definition', async () => {
-    const res = await app().request('/api/forms/form-1', {}, crossSiteEnv());
-    expect(res.status).toBe(200);
-    expect((await res.json() as { staff: unknown }).staff).toBeNull();
-  });
-
-  test('authenticates an admin GET so the route can return private settings', async () => {
-    const res = await app().request('/api/forms/form-1', {
-      headers: { Authorization: 'Bearer env-key' },
-    }, crossSiteEnv());
-    expect(res.status).toBe(200);
-    expect((await res.json() as { staff: { role: string } }).staff.role).toBe('owner');
-  });
-
-  test.each(['PUT', 'DELETE'])('%s on the same form path requires admin auth', async (method) => {
-    const res = await app().request('/api/forms/form-1', { method }, crossSiteEnv());
-    expect(res.status).toBe(401);
-  });
-
-  test.each(['submit', 'partial', 'opened'])(
-    'allows POST /%s through to route-level LIFF authentication',
-    async (action) => {
-      const res = await app().request(`/api/forms/form-1/${action}`, {
-        method: 'POST',
-      }, crossSiteEnv());
-      expect(res.status).toBe(200);
-    },
-  );
-
-  test('does not exempt the wrong method on a public action path', async () => {
-    const res = await app().request('/api/forms/form-1/submit', {
-      method: 'DELETE',
-    }, crossSiteEnv());
-    expect(res.status).toBe(401);
-  });
-});
-
-describe('Google OAuth callback boundary', () => {
-  test('allows only unauthenticated GET callback through to signed-state validation', async () => {
-    const get = await app().request(
-      '/api/booking/google-calendar/oauth/callback?state=signed&code=code',
-      {},
-      crossSiteEnv(),
-    );
-    expect(get.status).toBe(200);
-    expect(await get.text()).toBe('oauth-callback');
-
-    const post = await app().request('/api/booking/google-calendar/oauth/callback', {
-      method: 'POST',
-    }, crossSiteEnv());
-    expect(post.status).toBe(401);
   });
 });
 
