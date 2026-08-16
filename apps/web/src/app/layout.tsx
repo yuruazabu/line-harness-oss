@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import AppShell from '@/components/app-shell'
+import TenantUrlSync from '@/components/tenant-url-sync'
 
 export const metadata: Metadata = {
   title: 'L Harness',
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className="bg-gray-50 text-gray-900 antialiased" style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', system-ui, sans-serif" }}>
+        <TenantUrlSync />
         <AppShell>
           {children}
         </AppShell>

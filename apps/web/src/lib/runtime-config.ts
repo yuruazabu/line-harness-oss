@@ -21,12 +21,49 @@ import { useEffect, useState } from 'react'
 const TENANT_PARAM = 'tenant'
 const TENANT_SESSION_KEY = 'lh_tenant'
 const TENANT_LAST_KEY = 'lh_tenant_last'
+const TENANT_KNOWN_KEY = 'lh_tenants_known'
 
 const BUILD_TIME_API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 const TENANT_BASE_DOMAIN = process.env.NEXT_PUBLIC_TENANT_BASE_DOMAIN || ''
+const PORTAL_ORIGIN = process.env.NEXT_PUBLIC_PORTAL_ORIGIN || ''
 
 /** Subdomain label only — anything else is rejected to keep the URL mapping safe. */
 const TENANT_RE = /^[a-z0-9][a-z0-9-]{0,62}$/
+
+/** Portal (マイページ) origin — where the authoritative contract list lives. */
+export function portalOrigin(): string {
+  if (PORTAL_ORIGIN) return PORTAL_ORIGIN
+  // fall back to the sibling host of the admin origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin.replace(/^https:\/\/admin\./, 'https://app.')
+  }
+  return ''
+}
+
+/**
+ * Tenants this browser has opened. The admin authenticates per tenant and
+ * cannot list a customer's contracts, so this local set powers the switcher;
+ * the portal remains the authoritative list.
+ */
+export function knownTenants(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(TENANT_KNOWN_KEY)
+    const list = raw ? (JSON.parse(raw) as unknown) : []
+    return Array.isArray(list) ? list.filter((t): t is string => typeof t === 'string' && TENANT_RE.test(t)) : []
+  } catch {
+    return []
+  }
+}
+
+function rememberTenant(tenant: string): void {
+  try {
+    const next = [tenant, ...knownTenants().filter((t) => t !== tenant)].slice(0, 10)
+    localStorage.setItem(TENANT_KNOWN_KEY, JSON.stringify(next))
+  } catch {
+    // storage unavailable — the switcher just shows fewer entries
+  }
+}
 
 function resolveTenant(): string | null {
   if (typeof window === 'undefined') return null
@@ -35,6 +72,7 @@ function resolveTenant(): string | null {
     if (fromQuery && TENANT_RE.test(fromQuery)) {
       sessionStorage.setItem(TENANT_SESSION_KEY, fromQuery)
       localStorage.setItem(TENANT_LAST_KEY, fromQuery)
+      rememberTenant(fromQuery)
       return fromQuery
     }
     const fromSession = sessionStorage.getItem(TENANT_SESSION_KEY)

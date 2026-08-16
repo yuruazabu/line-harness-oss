@@ -8,6 +8,7 @@ import type { AccountWithStats } from '@/contexts/account-context'
 import { countryFlag } from '@/lib/country-flag'
 import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
 import { getApiBase, storageKey } from '@/lib/runtime-config'
+import TenantSwitcher from '@/components/tenant-switcher'
 
 const appVersion = process.env.APP_VERSION || '0.0.0'
 const appCommitSha = process.env.APP_COMMIT_SHA || 'local'
@@ -264,7 +265,8 @@ export default function Sidebar() {
       </div>
 
       {/* アカウント切替 */}
-      <AccountSwitcher />
+      <TenantSwitcher />
+        <AccountSwitcher />
 
       {/* ナビゲーション */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
