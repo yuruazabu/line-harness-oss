@@ -7,6 +7,7 @@ import {
   deleteStaffMember,
   regenerateStaffApiKey,
   countActiveStaffByRole,
+  deleteAdminSessionsForStaff,
 } from '@line-crm/db';
 import type { StaffMember } from '@line-crm/db';
 import { requireRole } from '../middleware/role-guard.js';
@@ -167,6 +168,13 @@ staff.patch('/api/staff/:id', requireRole('owner'), async (c) => {
       return c.json({ success: false, error: 'Staff member not found' }, 404);
     }
 
+    // Deactivating or demoting must take effect now, not whenever the cookie
+    // happens to expire. Sessions are a separate store since the opaque-token
+    // change, so the old "the cookie is the API key" side effect is gone.
+    if (body.isActive === false || body.role !== undefined) {
+      await deleteAdminSessionsForStaff(c.env.DB, id);
+    }
+
     return c.json({ success: true, data: serializeStaff(updated, true) });
   } catch (err) {
     console.error('PATCH /api/staff/:id error:', err);
@@ -197,6 +205,7 @@ staff.delete('/api/staff/:id', requireRole('owner'), async (c) => {
     }
 
     await deleteStaffMember(c.env.DB, id);
+    await deleteAdminSessionsForStaff(c.env.DB, id);
     return c.json({ success: true, data: null });
   } catch (err) {
     console.error('DELETE /api/staff/:id error:', err);
@@ -213,6 +222,9 @@ staff.post('/api/staff/:id/regenerate-key', requireRole('owner'), async (c) => {
       return c.json({ success: false, error: 'Staff member not found' }, 404);
     }
     const newKey = await regenerateStaffApiKey(c.env.DB, id);
+    // Rotating a key is the "I think it leaked" action; existing browser
+    // sessions must not survive it.
+    await deleteAdminSessionsForStaff(c.env.DB, id);
     return c.json({ success: true, data: { apiKey: newKey } });
   } catch (err) {
     console.error('POST /api/staff/:id/regenerate-key error:', err);
