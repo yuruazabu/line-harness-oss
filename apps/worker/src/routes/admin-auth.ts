@@ -1,10 +1,13 @@
 import { Hono } from 'hono';
+import { createAdminSession, deleteAdminSession, purgeExpiredAdminSessions } from '@line-crm/db';
 import type { Env } from '../index.js';
 import {
   ADMIN_AUTH_COOKIE,
   CSRF_COOKIE,
+  SESSION_MAX_AGE,
   adminSessionCookie,
   authenticateApiToken,
+  cookieToken,
   csrfCookie,
   csrfTokenFromCookie,
   expiredCookie,
@@ -43,8 +46,14 @@ adminAuth.post('/api/auth/login', async (c) => {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }
 
+  // The cookie carries an opaque token, never the API key itself — a leaked
+  // cookie is revocable server-side (delete the admin_sessions row) instead of
+  // being a leaked credential. Expired rows are purged here so no cron needed.
+  await purgeExpiredAdminSessions(c.env.DB);
+  const sessionToken = await createAdminSession(c.env.DB, staff, SESSION_MAX_AGE);
+
   const csrfToken = crypto.randomUUID();
-  c.header('Set-Cookie', adminSessionCookie(apiKey, config.sameSite), { append: true });
+  c.header('Set-Cookie', adminSessionCookie(sessionToken, config.sameSite), { append: true });
   c.header('Set-Cookie', csrfCookie(csrfToken, config.sameSite), { append: true });
   return c.json({ success: true, data: staff, csrfToken });
 });
@@ -56,6 +65,12 @@ adminAuth.post('/api/auth/login', async (c) => {
  */
 adminAuth.post('/api/auth/logout', async (c) => {
   const { sameSite } = resolveAdminAuthConfig(c.env, { requestOrigin: new URL(c.req.url).origin });
+  // Server-side revocation for opaque tokens (legacy API-key cookies have no
+  // row to delete — clearing the cookie is all we can do for those).
+  const cookie = cookieToken(c);
+  if (cookie?.startsWith('lhs_')) {
+    await deleteAdminSession(c.env.DB, cookie);
+  }
   c.header('Set-Cookie', expiredCookie(ADMIN_AUTH_COOKIE, sameSite), { append: true });
   c.header('Set-Cookie', expiredCookie(CSRF_COOKIE, sameSite), { append: true });
   return c.json({ success: true, data: null });
