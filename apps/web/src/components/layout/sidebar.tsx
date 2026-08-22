@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { navItems as customNavItems } from '@/extensions'
 import { useAccount } from '@/contexts/account-context'
 import type { AccountWithStats } from '@/contexts/account-context'
 import { countryFlag } from '@/lib/country-flag'
 import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
+import { withBasePath } from '@/lib/base-path'
 
 const appVersion = process.env.APP_VERSION || '0.0.0'
 const appCommitSha = process.env.APP_COMMIT_SHA || 'local'
@@ -53,6 +55,7 @@ const menuSections = [
     items: [
       { href: '/automations', label: 'オートメーション', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
       { href: '/auto-replies', label: '自動返信ルール', icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6' },
+      { href: '/slack', label: 'Slack通知', icon: 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z' },
       { href: '/webhooks', label: 'Webhook', icon: 'M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
       { href: '/notifications', label: '未対応', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
     ],
@@ -78,6 +81,10 @@ const menuSections = [
       { href: '/emergency', label: '緊急コントロール', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z', danger: true },
     ],
   },
+  // ★ うちの拡張(apps/web/src/extensions)。**本家のファイルを触らずに足すための1点**
+  ...(customNavItems.length
+    ? [{ label: '連携', items: customNavItems.map((n) => ({ href: n.href, label: n.label, icon: n.icon, external: n.external })) }]
+    : []),
 ]
 
 function AccountAvatar({ account, size = 32 }: { account: AccountWithStats; size?: number }) {
@@ -286,6 +293,10 @@ export default function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  // ★ 拡張の項目は外部URL(SaaS側のマイページ)を指すことがある
+                  {...('external' in item && item.external
+                    ? { target: '_blank', rel: 'noopener noreferrer' }
+                    : {})}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active
                       ? 'text-white'
@@ -351,7 +362,7 @@ export default function Sidebar() {
             localStorage.removeItem('lh_csrf')
             localStorage.removeItem('lh_staff_name')
             localStorage.removeItem('lh_staff_role')
-            window.location.href = '/login'
+            window.location.href = withBasePath('/login')
           }}
           className="flex items-center gap-2 text-xs text-gray-400 hover:text-red-500 transition-colors"
         >
