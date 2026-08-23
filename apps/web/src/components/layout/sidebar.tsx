@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { navItems as customNavItems } from '@/extensions'
 import { useAccount } from '@/contexts/account-context'
 import type { AccountWithStats } from '@/contexts/account-context'
 import { countryFlag } from '@/lib/country-flag'
@@ -80,6 +81,24 @@ const menuSections = [
     ],
   },
 ]
+
+// ★★ うちの拡張(apps/web/src/extensions)を**本家のセクションに混ぜる**。
+//
+//   最初は末尾に「連携」という独立セクションを作っていたが、
+//   **一番下すぎて見つからなかった**(2026-08-23 ひろさん指摘)。
+//   `section` で入れ先を指定し、無ければ末尾に置く。
+//   ★ **節が無ければ作る。項目ごとに作らない。**
+//     以前は該当する節が無いたびに `その他` を push していたので、
+//     項目4つで「その他」が4つに割れていた(2026-08-23)。
+for (const item of customNavItems) {
+  const label = item.section ?? 'その他'
+  let target = menuSections.find((s) => s.label === label)
+  if (!target) {
+    target = { label, items: [] }
+    menuSections.push(target)
+  }
+  target.items.push({ href: item.href, label: item.label, icon: item.icon })
+}
 
 function AccountAvatar({ account, size = 32 }: { account: AccountWithStats; size?: number }) {
   const displayName = account.displayName || account.name
@@ -287,6 +306,10 @@ export default function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  // ★ 拡張の項目は外部URL(SaaS側のマイページ)を指すことがある
+                  {...('external' in item && item.external
+                    ? { target: '_blank', rel: 'noopener noreferrer' }
+                    : {})}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active
                       ? 'text-white'
