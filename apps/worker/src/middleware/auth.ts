@@ -1,5 +1,5 @@
 import type { Context, Next } from 'hono';
-import { getStaffByApiKey } from '@line-crm/db';
+import { getAdminSession, getStaffByApiKey } from '@line-crm/db';
 import type { Env } from '../index.js';
 import type { AdminSameSite } from './admin-auth-config.js';
 
@@ -8,7 +8,12 @@ export const CSRF_COOKIE = 'lh_csrf';
 export const CSRF_HEADER = 'x-csrf-token';
 
 // 7 days, matching the previous localStorage session longevity.
-const SESSION_MAX_AGE = 604800;
+export const SESSION_MAX_AGE = 604800;
+
+// Opaque session tokens issued by /api/auth/login (see db admin-sessions).
+// Distinct from API keys (`lh_…` / env values) so the legacy cookie fallback
+// never confuses the two.
+const SESSION_TOKEN_PREFIX = 'lhs_';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -42,8 +47,27 @@ function bearerToken(c: Context<Env>): string | null {
   return authHeader.slice('Bearer '.length);
 }
 
-function cookieToken(c: Context<Env>): string | null {
+export function cookieToken(c: Context<Env>): string | null {
   return parseCookieHeader(c.req.header('Cookie'))[ADMIN_AUTH_COOKIE] || null;
+}
+
+/**
+ * Resolve the session cookie to a staff identity. Opaque tokens (`lhs_…`)
+ * hit the admin_sessions store — revocable server-side. Anything else is a
+ * legacy cookie from before the opaque-token change, whose value was the API
+ * key itself; keep accepting it so the upgrade logs nobody out. Legacy
+ * cookies age out naturally via Max-Age (≤7 days).
+ */
+export async function resolveCookieSession(
+  c: Context<Env>,
+  cookie: string,
+): Promise<AuthenticatedStaff | null> {
+  if (cookie.startsWith(SESSION_TOKEN_PREFIX)) {
+    const session = await getAdminSession(c.env.DB, cookie);
+    if (!session) return null;
+    return { id: session.staff_id, name: session.staff_name, role: session.staff_role };
+  }
+  return authenticateApiToken(c, cookie);
 }
 
 export function csrfTokenFromCookie(c: Context<Env>): string | null {
@@ -213,9 +237,12 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
 
   const bearer = bearerToken(c);
   const cookie = cookieToken(c);
-  const token = bearer ?? cookie;
-
-  const staff = await authenticateApiToken(c, token);
+  let staff: AuthenticatedStaff | null = null;
+  if (bearer) {
+    staff = await authenticateApiToken(c, bearer);
+  } else if (cookie) {
+    staff = await resolveCookieSession(c, cookie);
+  }
   if (!staff) {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }

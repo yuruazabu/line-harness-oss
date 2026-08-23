@@ -11,6 +11,16 @@ vi.mock('@line-crm/db', () => ({
     if (token !== 'staff-key') return null;
     return { id: 'staff-1', name: 'Staff One', role: 'admin' };
   }),
+  // Opaque session store. Login issues a random token and persists only its
+  // hash, so the cookie is no longer the API key itself.
+  createAdminSession: vi.fn(async () => 'lhs_test-session-token'),
+  getAdminSession: vi.fn(async (_db: unknown, token: string) =>
+    token === 'lhs_test-session-token'
+      ? { staff_id: 'staff-1', staff_name: 'Staff One', staff_role: 'admin' }
+      : null,
+  ),
+  deleteAdminSession: vi.fn(async () => undefined),
+  purgeExpiredAdminSessions: vi.fn(async () => undefined),
 }));
 
 const PAGES = 'https://your-admin.pages.dev';
@@ -84,7 +94,10 @@ describe('admin login cookie attributes', () => {
     expect(body.csrfToken).toBeTruthy();
 
     const session = cookieFor(res, 'lh_admin_session') ?? '';
-    expect(session).toContain('lh_admin_session=staff-key');
+    // 不透明トークン化により、Cookie の中身は API キーそのものではなくなった。
+    // 漏れた Cookie をサーバ側で失効できるようにするための意図的な契約変更。
+    expect(session).toContain('lh_admin_session=lhs_');
+    expect(session).not.toContain('staff-key');
     expect(session).toContain('HttpOnly');
     expect(session).toContain('Secure');
     expect(session).toContain('SameSite=None');
@@ -334,5 +347,33 @@ describe('CORS allowed / blocked origins', () => {
       headers: { Origin: 'https://evil.example.com', Cookie: 'lh_admin_session=staff-key' },
     }, crossSiteEnv());
     expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+});
+
+
+describe('opaque admin session cookie', () => {
+  test('puts an opaque token in the cookie, never the API key', async () => {
+    const res = await app().request(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: 'staff-key' }),
+      },
+      env(),
+    );
+    expect(res.status).toBe(200);
+    const session = cookieFor(res, 'lh_admin_session') ?? '';
+    expect(session).toContain('lhs_');
+    expect(session).not.toContain('staff-key');
+  });
+
+  test('still accepts a legacy API-key cookie so the upgrade logs nobody out', async () => {
+    const res = await app().request(
+      '/api/protected',
+      { headers: { Cookie: 'lh_admin_session=staff-key' } },
+      env(),
+    );
+    expect(res.status).not.toBe(401);
   });
 });
