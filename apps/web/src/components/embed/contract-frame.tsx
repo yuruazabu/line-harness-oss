@@ -21,12 +21,9 @@ import { useEffect, useRef, useState } from 'react'
 export default function ContractFrame({
   path,
   title,
-  onTitle,
 }: {
   path: string
   title: string
-  /** 枠の中で画面が移ったときの見出し。上の見出しを追随させる */
-  onTitle?: (t: string) => void
 }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(600)
@@ -43,12 +40,10 @@ export default function ContractFrame({
       if (d?.type !== 'lhc:embed-height') return
       const h = Number(d.height)
       if (Number.isFinite(h) && h > 0) setHeight(Math.min(Math.max(h, 200), 20000))
-      const t = (e.data as { title?: string }).title
-      if (typeof t === 'string' && t) onTitle?.(t)
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
-  }, [base, onTitle])
+  }, [base])
 
   if (!base) {
     return <p className="text-sm text-gray-500">この画面は準備中です。</p>
