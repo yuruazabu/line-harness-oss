@@ -80,11 +80,23 @@ const menuSections = [
       { href: '/emergency', label: '緊急コントロール', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z', danger: true },
     ],
   },
-  // ★ うちの拡張(apps/web/src/extensions)。**本家のファイルを触らずに足すための1点**
-  ...(customNavItems.length
-    ? [{ label: '連携', items: customNavItems.map((n) => ({ href: n.href, label: n.label, icon: n.icon, external: n.external })) }]
-    : []),
 ]
+
+// ★★ うちの拡張(apps/web/src/extensions)を**本家のセクションに混ぜる**。
+//
+//   最初は末尾に「連携」という独立セクションを作っていたが、
+//   **一番下すぎて見つからなかった**(2026-08-23 ひろさん指摘)。
+//   `section` で入れ先を指定し、無ければ末尾に置く。
+for (const item of customNavItems) {
+  const target = item.section
+    ? menuSections.find((s) => s.label === item.section)
+    : undefined
+  if (target) {
+    target.items.push({ href: item.href, label: item.label, icon: item.icon })
+  } else {
+    menuSections.push({ label: 'その他', items: [{ href: item.href, label: item.label, icon: item.icon }] })
+  }
+}
 
 function AccountAvatar({ account, size = 32 }: { account: AccountWithStats; size?: number }) {
   const displayName = account.displayName || account.name
