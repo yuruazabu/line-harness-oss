@@ -30,7 +30,10 @@ interface Config {
 const KIND_LABEL: Record<string, string> = { slack: 'Slack' }
 
 async function callApi(path: string, init?: RequestInit) {
-  const res = await fetch(`/api/__notify${path}`, {
+  // ★★ **相対パスで叩かない。** 中継構成では画面が app.hrns.jp/t/{契約}/console/
+  //   に出るので、`/api/__notify` は契約の外へ落ちる(2026-08-23)
+  const base = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "")
+  const res = await fetch(`${base}/api/__notify${path}`, {
     ...init,
     headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
   })
