@@ -1658,7 +1658,7 @@ function completionPage(displayName: string, pictureUrl: string | null, ref: str
     <div class="check">✓</div>
     <h2>登録完了！</h2>
     <div class="profile">
-      ${pictureUrl ? `<img src="${pictureUrl}" alt="">` : ''}
+      ${pictureUrl ? `<img src="${escapeHtml(pictureUrl)}" alt="">` : ''}
       <p class="name">${escapeHtml(displayName)} さん</p>
     </div>
     <p class="message">ありがとうございます！<br>これからお役立ち情報をお届けします。<br>このページは閉じて大丈夫です。</p>
@@ -1693,7 +1693,12 @@ function errorPage(message: string): string {
 }
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ─── X Harness Token Resolution ─────────────────────────────────
