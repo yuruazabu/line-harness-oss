@@ -36,18 +36,6 @@ export interface NavItem {
  *
  * ★ いまは空。足すときはここに1行書く。
  */
-/**
- * 契約の土台。`https://app.hrns.jp/t/{契約}` になる(中継構成)。
- *
- * ★★ **請求・アカウント・問い合わせは同じ契約の下に置く。**
- *   顧客から見て「1つの場所」にするため(2026-08-23 ひろさん指示
- *   「マイページを一切見ることがない状態まで合体させたい」)。
- *   中継しない構成では素のオリジンになるので、リンクは従来どおり根に出る。
- */
-function contractBase(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-}
-
 export const navItems: NavItem[] = [
   {
     href: "/notify",
@@ -58,48 +46,47 @@ export const navItems: NavItem[] = [
     icon: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8",
   },
   // ── 契約まわり(control-plane が持つ画面)────────────────────────────
-  // ★ 管理画面の外(同じホストの別SPA)なので external で開く。
-  //   同一ホストなのでログインは引き継がれる
+  // ★★ **この管理画面の中のページとして開く。** 別URLへ飛ばすと
+  //   サイドバーごと入れ替わって戻り道が消える
+  //   (2026-08-23 ひろさん指摘「別のシステムに飛んで、戻り方がわからず
+  //   違和感しかない」)。**入れ替わるのは右側だけ。**
+  //   中身は control-plane 側の画面をそのまま置く
+  //   (components/embed/contract-frame.tsx)
   {
     // ★ 契約の切替えはここ。複数契約は実在する(1顧客で3件)
     // ★ `?switch=1` が要る。付けないと一覧が管理画面へ送り返すので、
     //   **切り替え画面に永久に辿り着けない**
-    href: `${contractBase()}/?switch=1`,
+    href: "/contracts",
     label: "契約の切り替え",
     section: "契約",
-    external: true,
     // 入れ替えの矢印
     icon: "M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4",
   },
   {
-    href: `${contractBase()}/billing`,
+    href: "/billing",
     label: "請求とお支払い",
     section: "契約",
-    external: true,
     // カード
     icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
   },
   {
-    href: `${contractBase()}/support`,
+    href: "/support",
     label: "お問い合わせ",
     section: "契約",
-    external: true,
     // 吹き出し
     icon: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z",
   },
   {
-    href: `${contractBase()}/ai`,
+    href: "/ai",
     label: "AI連携",
     section: "契約",
-    external: true,
     // きらめき
     icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
   },
   {
-    href: `${contractBase()}/account`,
+    href: "/account",
     label: "アカウント",
     section: "契約",
-    external: true,
     // 人
     icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
   },
