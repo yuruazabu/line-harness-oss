@@ -8,6 +8,11 @@
 //
 // ★ **テナントIDはこの画面から送らない。** ラッパーが付ける。
 //   送らせると、値を書き換えて他人の契約の設定を触られる。
+//
+// ★ 見た目は既存ページ(auto-replies 等)の作法に合わせる(2026-08-23 ひろさん指摘)。
+//   ページ側では幅も余白も持たない(余白は上位レイアウトが、見出し下は Header の mb-8 が持つ)。
+//   幅100%で使うぶん、一覧は既存と同じテーブルにし、チェックボックスは画面幅に応じて
+//   カラムを増やして、横に間延びしないようにしている。
 
 import { useCallback, useEffect, useState } from 'react'
 import Header from '@/components/layout/header'
@@ -80,88 +85,96 @@ export default function NotifyPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div>
-        <Header title="通知の連携" />
-        <div className="p-6 max-w-5xl mx-auto">
-          <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div>
-      <Header title="通知の連携" />
-      <div className="p-6 max-w-5xl mx-auto">
-        <p className="text-sm text-gray-600 mb-6">
+      <Header
+        title="通知の連携"
+        // ★ ページの主操作は Header の action に置く(既存ページは全部この形。
+        //   空状態のカードの中にだけボタンを置くと、このページだけ操作の場所が変わる)。
+        //   連携済みでも同じボタンで別チャンネルを足せるので、常時ここに出す
+        action={
+          cfg?.slackConfigured ? (
+            <button
+              onClick={connectSlack}
+              disabled={busy}
+              className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: '#06C755' }}
+            >
+              {busy ? '…' : '+ Slack と連携する'}
+            </button>
+          ) : undefined
+        }
+      />
+
+      {msg && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+          {msg}
+        </div>
+      )}
+
+      {/* ★ ページの説明は青の案内ボックスで(既存ページの補足説明と同じ形。
+            素の段落だと、幅100%のページでは1行が伸びすぎて浮く) */}
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+        <p>
           友だちが増えたときや、フォーム・予約が入ったときに Slack へお知らせします。
-          <strong className="text-gray-900">どの出来事を、どこへ送るか</strong>を分けて決められます。
+          <strong>どの出来事を、どこへ送るか</strong>を分けて決められます。
         </p>
-
-        {msg && (
-          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-            {msg}
-          </div>
-        )}
-
-        {/* ── 通知先 ────────────────────────────────── */}
-        <section className="mb-8">
-          <h2 className="text-sm font-semibold text-gray-800 mb-3">通知先</h2>
-          {cfg?.targets.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center">
-              <p className="text-sm text-gray-600 mb-4">まだ通知先がありません。</p>
-              {cfg.slackConfigured ? (
-                <button
-                  onClick={connectSlack}
-                  disabled={busy}
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
-                  style={{ backgroundColor: '#06C755' }}
-                >
-                  {busy ? '…' : 'Slack と連携する'}
-                </button>
-              ) : (
-                <p className="text-sm text-gray-500">Slack連携は準備中です。</p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {cfg?.targets.map((t) => (
-                <TargetRow key={t.id} target={t} rules={cfg.rules} onChange={load} />
-              ))}
-              {cfg?.slackConfigured && (
-                <button
-                  onClick={connectSlack}
-                  disabled={busy}
-                  className="text-sm text-gray-600 hover:text-gray-900 underline"
-                >
-                  別のチャンネルを追加する
-                </button>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* ── ルール ────────────────────────────────── */}
-        {cfg && cfg.targets.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold text-gray-800 mb-3">どの出来事を送るか</h2>
-            <div className="space-y-3">
-              {cfg.rules.map((r) => (
-                <RuleCard
-                  key={r.id}
-                  rule={r}
-                  targets={cfg.targets}
-                  events={cfg.events}
-                  onChange={load}
-                />
-              ))}
-              <NewRule targets={cfg.targets} events={cfg.events} onChange={load} />
-            </div>
-          </section>
-        )}
       </div>
+
+      {/* ── 通知先 ────────────────────────────────── */}
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold text-gray-800 mb-4">通知先</h2>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">通知先</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">種類</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">結果</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400 text-sm">読み込み中...</td></tr>
+                ) : !cfg || cfg.targets.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-400 text-sm">
+                      {cfg && !cfg.slackConfigured
+                        ? '通知先がありません(Slack連携は準備中です)'
+                        : 'まだ通知先がありません'}
+                    </td>
+                  </tr>
+                ) : (
+                  cfg.targets.map((t) => (
+                    <TargetRow key={t.id} target={t} rules={cfg.rules} onChange={load} />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ── ルール ────────────────────────────────── */}
+      {cfg && cfg.targets.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800 mb-4">どの出来事を送るか</h2>
+          <div className="space-y-3">
+            {cfg.rules.map((r) => (
+              <RuleCard
+                key={r.id}
+                rule={r}
+                targets={cfg.targets}
+                events={cfg.events}
+                onChange={load}
+              />
+            ))}
+            <NewRule targets={cfg.targets} events={cfg.events} onChange={load} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -213,31 +226,30 @@ function TargetRow({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-gray-900 truncate">{target.label}</div>
-        <div className="text-xs text-gray-500">
-          {KIND_LABEL[target.kind] ?? target.kind}
-          {result && <span className="ml-2 font-medium text-gray-700">{result}</span>}
+    <tr className="hover:bg-gray-50">
+      <td className="px-4 py-3 text-sm font-medium text-gray-900">{target.label}</td>
+      <td className="px-4 py-3 text-xs text-gray-600">{KIND_LABEL[target.kind] ?? target.kind}</td>
+      {/* ★ 試し送り・削除の結果は同じ行の中に出す(どの通知先の結果かを迷わせない) */}
+      <td className="px-4 py-3 text-xs text-gray-700">{result}</td>
+      <td className="px-4 py-3">
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={test}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-md border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            試し送り
+          </button>
+          <button
+            onClick={remove}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-md border border-gray-300 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+          >
+            削除
+          </button>
         </div>
-      </div>
-      <div className="flex shrink-0 gap-2">
-        <button
-          onClick={test}
-          disabled={busy}
-          className="px-3 py-1.5 rounded-md border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          試し送り
-        </button>
-        <button
-          onClick={remove}
-          disabled={busy}
-          className="px-3 py-1.5 rounded-md border border-gray-300 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-        >
-          削除
-        </button>
-      </div>
-    </div>
+      </td>
+    </tr>
   )
 }
 
@@ -257,6 +269,10 @@ function EventPicker({
   // ★ 畳んだ中に選択済みがあるなら開いておく(選んだものが見えないと不安になる)
   const restSelected = rest.some((e) => selected.includes(e.key))
 
+  // ★ 幅100%のページに置くので、広い画面ではカラムを増やす
+  //   (2カラム固定のまま横に伸ばすと、チェックボックスの間だけが間延びする)
+  const grid = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4'
+
   const box = (e: NotifyEvent) => (
     <label key={e.key} className="flex items-center gap-2 text-sm text-gray-700 py-1">
       <input
@@ -271,9 +287,9 @@ function EventPicker({
 
   return (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">{common.map(box)}</div>
+      <div className={grid}>{common.map(box)}</div>
       {(open || restSelected) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 mt-2 pt-2 border-t border-gray-100">
+        <div className={`${grid} mt-2 pt-2 border-t border-gray-100`}>
           {rest.map(box)}
         </div>
       )}
@@ -282,7 +298,7 @@ function EventPicker({
           onClick={() => setOpen(true)}
           className="mt-2 text-xs text-gray-600 hover:text-gray-900 underline"
         >
-          ほかの出来事も見る（{rest.length}件）
+          ほかの出来事も見る({rest.length}件)
         </button>
       )}
     </div>
@@ -335,7 +351,7 @@ function RuleCard({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-3">
         <div className="text-sm font-medium text-gray-900">{target?.label ?? '(削除された通知先)'}</div>
         <button
@@ -384,11 +400,12 @@ function NewRule({
 
   if (!open) {
     return (
+      // ★ 破線ボーダーは既存ページに無いので使わない。カードと同じ実線で揃える
       <button
         onClick={() => setOpen(true)}
-        className="w-full rounded-lg border border-dashed border-gray-300 bg-white py-3 text-sm text-gray-600 hover:bg-gray-50"
+        className="w-full bg-white rounded-lg border border-gray-200 py-3 text-sm text-gray-600 hover:bg-gray-50"
       >
-        ＋ 送る出来事を追加する
+        + 送る出来事を追加する
       </button>
     )
   }
@@ -408,12 +425,14 @@ function NewRule({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
       <label className="block text-xs font-medium text-gray-600 mb-1">送り先</label>
+      {/* ★ ページは幅100%だが、selectまで全幅にすると横に伸びすぎて選びにくい。
+            フォーム部品だけ読みやすい幅で止める(ページ幅を絞るのとは別の話) */}
       <select
         value={targetId}
         onChange={(e) => setTargetId(e.target.value)}
-        className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="mb-3 w-full max-w-md rounded-md border border-gray-300 px-3 py-2 text-sm"
       >
         {targets.map((t) => (
           <option key={t.id} value={t.id}>{t.label}</option>
