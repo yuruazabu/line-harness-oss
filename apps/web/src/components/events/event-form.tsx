@@ -7,6 +7,7 @@ import ImageUploader from '@/components/shared/image-uploader'
 import OgEditor from '@/components/shared/og-editor'
 import { useAccount } from '@/contexts/account-context'
 import { generateBulkSlots, type BulkSlotInput } from './bulk-slot-generator'
+import Link from 'next/link'
 
 type Tab = 'overview' | 'slots' | 'publish'
 
@@ -214,7 +215,7 @@ export default function EventForm({ accountId, eventId }: EventFormProps) {
     <div className="p-6 max-w-4xl mx-auto">
       {/* breadcrumb */}
       <div className="mb-4 flex items-center gap-2 text-sm">
-        <a href="/events" className="text-blue-600 hover:underline">イベント一覧</a>
+        <Link href="/events" className="text-blue-600 hover:underline">イベント一覧</Link>
         <span className="text-gray-400">/</span>
         <span className="text-gray-700">{eventId ? draft.name || 'イベント編集' : '新規イベント'}</span>
       </div>
