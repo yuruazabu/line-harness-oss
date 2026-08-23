@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Header from '@/components/layout/header'
-import { fetchApi } from '@/lib/api'
+import { fetchApi, ApiError } from '@/lib/api'
 import type { ApiResponse } from '@line-crm/shared'
 import type { StaffMember } from '@line-crm/shared'
 
@@ -76,8 +76,16 @@ export default function StaffPage() {
       } else {
         setError(res.error ?? 'スタッフの読み込みに失敗しました')
       }
-    } catch {
-      setError('スタッフの読み込みに失敗しました')
+    } catch (e) {
+      // ★ /api/staff は本家の設計で **owner 専用**。招待されたスタッフや
+      //   運営の代理ログイン(role=admin)では 403 になる。
+      //   fetchApi は本文を読まずに status だけ投げるので、ここで言い換える。
+      //   「読み込みに失敗しました」だけだと、権限の話だと分からない
+      setError(
+        e instanceof ApiError && e.status === 403
+          ? 'スタッフの一覧は、契約者（owner）だけが表示できます。'
+          : 'スタッフの読み込みに失敗しました',
+      )
     } finally {
       setLoading(false)
     }
