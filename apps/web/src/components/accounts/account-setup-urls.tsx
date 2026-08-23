@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { publicBase } from '@/lib/public-base'
 
 interface Props {
   liffId: string | null
@@ -14,10 +15,10 @@ interface Props {
 // In production this is something like https://your-worker.your-subdomain.workers.dev.
 // We derive it from NEXT_PUBLIC_API_URL because the admin UI already requires
 // that env var (build fails without it — see apps/web/src/lib/api.ts).
+// ★ **API の向き先ではなく公開オリジンを使う。** ここで出すURLは
+//   LINE Developers Console に登録され、配信メッセージに焼き込まれる
 function workerBase(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL
-  if (!url) return ''
-  return url.replace(/\/$/, '')
+  return publicBase()
 }
 
 export default function AccountSetupUrls({ liffId, heading }: Props) {

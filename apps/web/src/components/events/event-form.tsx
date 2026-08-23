@@ -8,6 +8,7 @@ import OgEditor from '@/components/shared/og-editor'
 import { useAccount } from '@/contexts/account-context'
 import { generateBulkSlots, type BulkSlotInput } from './bulk-slot-generator'
 import Link from 'next/link'
+import { publicBase } from '@/lib/public-base'
 
 type Tab = 'overview' | 'slots' | 'publish'
 
@@ -82,7 +83,8 @@ export default function EventForm({ accountId, eventId }: EventFormProps) {
   // single mode の公開 URL。Worker `/o` は ref 解決・追跡なしで liffId を直接
   // 受けるため、LINE 内配信も SNS 配信もこの 1 本で完結する。`liff.line.me`
   // 直貼りは OpenChat / IG DM 等で削除されるが、`/o` 経由なら通る。
-  const workerBase = process.env.NEXT_PUBLIC_API_URL ?? ''
+  // ★ 友だちが開くLIFFのURL。公開オリジンでなければならない
+  const workerBase = publicBase()
   const liffUrl = eventId && liffId && workerBase
     ? `${workerBase}/o?liffId=${encodeURIComponent(liffId)}&page=event&id=${encodeURIComponent(eventId)}`
     : null

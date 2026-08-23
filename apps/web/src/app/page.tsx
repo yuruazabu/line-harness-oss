@@ -6,12 +6,14 @@ import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
 import { statSlots } from '@/extensions'
+import { publicBase } from '@/lib/public-base'
 
 // 「LINE で体験する」バナーの遷移先。upstream はここに
 // https://your-worker.your-subdomain.workers.dev を直書きしており、どのインストールでも
 // リンクが壊れていた。他ページ (inflow-links/page.tsx など) と同じくビルド時の
 // NEXT_PUBLIC_API_URL から組み立てる。未設定ならバナーを出さない。
-const WORKER_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
+// ★ 友だちが開く導線。公開オリジンでなければならない
+const WORKER_BASE = publicBase()
 
 const ccPrompts = [
   {
@@ -87,7 +89,8 @@ function StatCard({ title, value, loading, icon, href, accentColor = '#06C755' }
 function FriendAddLinkCard() {
   const { selectedAccount } = useAccount()
   const [copied, setCopied] = useState(false)
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
+  // ★ 計測リンク。公開オリジンでなければならない
+  const base = publicBase()
   const link = selectedAccount
     ? `${base}/r/dashboard?account=${encodeURIComponent(selectedAccount.channelId)}`
     : `${base}/r/dashboard`

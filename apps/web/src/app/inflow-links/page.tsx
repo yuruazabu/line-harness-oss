@@ -8,6 +8,7 @@ import Header from '@/components/layout/header'
 import { useAccount } from '@/contexts/account-context'
 import type { EntryRoute, TrafficPool, Scenario, Tag } from '@line-crm/shared'
 import EditRouteModal from './_components/edit-route-modal'
+import { publicBase } from '@/lib/public-base'
 
 interface MessageTemplate {
   id: string
@@ -51,7 +52,8 @@ interface RefDetail {
   friends: RefFriend[]
 }
 
-const WORKER_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
+// ★ 計測リンク。配信メッセージに焼き込まれるので公開オリジン
+const WORKER_BASE = publicBase()
 
 export default function InflowLinksPage() {
   const { selectedAccountId } = useAccount()
