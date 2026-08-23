@@ -82,24 +82,26 @@ export default function NotifyPage() {
 
   if (loading) {
     return (
-      <>
-        <Header title="通知" />
-        <div className="p-6"><div className="h-24 bg-gray-100 rounded animate-pulse" /></div>
-      </>
+      <div>
+        <Header title="通知の連携" />
+        <div className="p-6 max-w-5xl mx-auto">
+          <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+        </div>
+      </div>
     )
   }
 
   return (
-    <>
-      <Header title="通知" />
-      <div className="p-6 max-w-4xl">
+    <div>
+      <Header title="通知の連携" />
+      <div className="p-6 max-w-5xl mx-auto">
         <p className="text-sm text-gray-600 mb-6">
           友だちが増えたときや、フォーム・予約が入ったときに Slack へお知らせします。
           <strong className="text-gray-900">どの出来事を、どこへ送るか</strong>を分けて決められます。
         </p>
 
         {msg && (
-          <div className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium">
+          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
             {msg}
           </div>
         )}
@@ -114,7 +116,8 @@ export default function NotifyPage() {
                 <button
                   onClick={connectSlack}
                   disabled={busy}
-                  className="px-4 py-2 rounded-lg bg-[#4A154B] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: '#06C755' }}
                 >
                   {busy ? '…' : 'Slack と連携する'}
                 </button>
@@ -159,7 +162,7 @@ export default function NotifyPage() {
           </section>
         )}
       </div>
-    </>
+    </div>
   )
 }
 
@@ -353,7 +356,8 @@ function RuleCard({
         <button
           onClick={save}
           disabled={busy || sel.length === 0}
-          className="mt-3 px-4 py-2 rounded-lg bg-[#06C755] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          className="mt-3 px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: '#06C755' }}
         >
           {busy ? '保存中…' : '保存する'}
         </button>
@@ -426,7 +430,8 @@ function NewRule({
         <button
           onClick={create}
           disabled={busy || sel.length === 0 || !targetId}
-          className="px-4 py-2 rounded-lg bg-[#06C755] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: '#06C755' }}
         >
           {busy ? '追加中…' : '追加する'}
         </button>
