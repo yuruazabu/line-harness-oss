@@ -146,7 +146,6 @@ export default function StaffPage() {
       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
         <p>
           招待された方は、そのメールアドレスでログインするとこの画面に入れます。
-          <strong>鍵の受け渡しは要りません。</strong>
         </p>
       </div>
 
