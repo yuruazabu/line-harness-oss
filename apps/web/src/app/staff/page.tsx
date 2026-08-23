@@ -155,6 +155,15 @@ export default function StaffPage() {
         </div>
       )}
 
+      {/* ★ **本家にあったエラー表示を、作り直したときに落としていた**(2026-08-23)。
+          setError は呼ばれていたのに画面に出る場所が無く、読み込みが 403 で失敗しても
+          「スタッフがいません」とだけ出ていた。**失敗を空と同じ顔で見せない。** */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
       {/* ★ 招待中を**スタッフ一覧とは別に出す**。混ぜると「もう入れる人」と
           「まだ入っていない人」の区別が付かない */}
       {pending.length > 0 && (
@@ -222,7 +231,12 @@ export default function StaffPage() {
         </div>
       ) : members.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500 text-sm">スタッフがいません。右上の「+ スタッフを招待」から招待してください。</p>
+          {/* 読み込みに失敗しているなら「いません」ではない。上のエラーに任せる */}
+          <p className="text-gray-500 text-sm">
+            {error
+              ? 'スタッフの一覧を表示できませんでした。'
+              : 'スタッフがいません。右上の「+ スタッフを招待」から招待してください。'}
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
