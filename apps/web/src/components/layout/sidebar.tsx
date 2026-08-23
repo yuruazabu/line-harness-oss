@@ -87,15 +87,17 @@ const menuSections = [
 //   最初は末尾に「連携」という独立セクションを作っていたが、
 //   **一番下すぎて見つからなかった**(2026-08-23 ひろさん指摘)。
 //   `section` で入れ先を指定し、無ければ末尾に置く。
+//   ★ **節が無ければ作る。項目ごとに作らない。**
+//     以前は該当する節が無いたびに `その他` を push していたので、
+//     項目4つで「その他」が4つに割れていた(2026-08-23)。
 for (const item of customNavItems) {
-  const target = item.section
-    ? menuSections.find((s) => s.label === item.section)
-    : undefined
-  if (target) {
-    target.items.push({ href: item.href, label: item.label, icon: item.icon })
-  } else {
-    menuSections.push({ label: 'その他', items: [{ href: item.href, label: item.label, icon: item.icon }] })
+  const label = item.section ?? 'その他'
+  let target = menuSections.find((s) => s.label === label)
+  if (!target) {
+    target = { label, items: [] }
+    menuSections.push(target)
   }
+  target.items.push({ href: item.href, label: item.label, icon: item.icon })
 }
 
 function AccountAvatar({ account, size = 32 }: { account: AccountWithStats; size?: number }) {
