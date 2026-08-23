@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
+import { statSlots } from '@/extensions'
 
 // 「LINE で体験する」バナーの遷移先。upstream はここに
 // https://your-worker.your-subdomain.workers.dev を直書きしており、どのインストールでも
@@ -237,6 +238,10 @@ export default function DashboardPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+        {/* ★ うちの拡張(apps/web/src/extensions)。本家のカードより前に出す */}
+        {statSlots.map((slot) => (
+          <ExtensionStat key={slot.title} slot={slot} />
+        ))}
         <StatCard
           title="友だち数"
           value={stats.friendCount}
@@ -408,5 +413,65 @@ export default function DashboardPage() {
 
       <CcPromptButton prompts={ccPrompts} />
     </div>
+  )
+}
+
+/**
+ * 拡張のカード。**本家の StatCard と同じ見た目**にする。
+ *
+ * ★ 取得に失敗しても**画面を止めない**。数字のところに「-」を出すだけ。
+ *   ダッシュボードは毎日開く画面なので、1枚の失敗で全部が白くなると困る。
+ */
+function ExtensionStat({ slot }: { slot: (typeof statSlots)[number] }) {
+  const [state, setState] = useState<{ value: number | null; sub?: string; href?: string }>({
+    value: null,
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    slot
+      .load()
+      .then((r) => alive && setState(r))
+      .catch(() => alive && setState({ value: null }))
+      .finally(() => alive && setLoading(false))
+    return () => {
+      alive = false
+    }
+  }, [slot])
+
+  const card = (
+    <div className="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-500 mb-2">{slot.title}</p>
+          {loading ? (
+            <div className="h-8 w-20 bg-gray-100 rounded animate-pulse" />
+          ) : (
+            <p className="text-3xl font-bold text-gray-900">
+              {state.value !== null ? state.value.toLocaleString('ja-JP') : '-'}
+            </p>
+          )}
+          {!loading && state.sub && <p className="text-xs text-gray-500 mt-1">{state.sub}</p>}
+        </div>
+        <div
+          className="p-2 rounded-lg"
+          style={{ backgroundColor: `${slot.accentColor ?? '#06C755'}1A`, color: slot.accentColor ?? '#06C755' }}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={slot.icon} />
+          </svg>
+        </div>
+      </div>
+    </div>
+  )
+
+  // ★ 行き先はマイページ(別オリジン)。Link ではなく素の a で開く
+  return state.href ? (
+    <a href={state.href} target="_blank" rel="noopener noreferrer" className="block hover:shadow-md transition-shadow rounded-lg">
+      {card}
+    </a>
+  ) : (
+    card
   )
 }
