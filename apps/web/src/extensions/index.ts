@@ -62,7 +62,9 @@ export const navItems: NavItem[] = [
   //   同一ホストなのでログインは引き継がれる
   {
     // ★ 契約の切替えはここ。複数契約は実在する(1顧客で3件)
-    href: `${contractBase()}/`,
+    // ★ `?switch=1` が要る。付けないと一覧が管理画面へ送り返すので、
+    //   **切り替え画面に永久に辿り着けない**
+    href: `${contractBase()}/?switch=1`,
     label: "契約の切り替え",
     section: "契約",
     external: true,
