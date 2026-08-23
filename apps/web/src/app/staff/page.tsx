@@ -28,7 +28,9 @@ interface PendingInvite {
   id: string
   email: string
   role: string
-  expiresAt: string
+  // ★ control-plane はDBの列名のまま返す(スネークケース)。
+  //   キャメルケースで受けようとして undefined を出した(2026-08-23)
+  expires_at: string
 }
 
 /**
@@ -175,7 +177,7 @@ export default function StaffPage() {
                     <td className="px-4 py-3 text-gray-900">{inv.email}</td>
                     <td className="px-4 py-3 text-gray-600">{inv.role === 'admin' ? '管理者' : 'スタッフ'}</td>
                     <td className="px-4 py-3 text-gray-500">
-                      {new Date(inv.expiresAt).toLocaleString('ja-JP')}
+                      {new Date(inv.expires_at).toLocaleString('ja-JP')}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
