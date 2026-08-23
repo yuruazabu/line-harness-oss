@@ -61,6 +61,15 @@ export const navItems: NavItem[] = [
   // ★ 管理画面の外(同じホストの別SPA)なので external で開く。
   //   同一ホストなのでログインは引き継がれる
   {
+    // ★ 契約の切替えはここ。複数契約は実在する(1顧客で3件)
+    href: `${contractBase()}/`,
+    label: "契約の切り替え",
+    section: "契約",
+    external: true,
+    // 入れ替えの矢印
+    icon: "M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4",
+  },
+  {
     href: `${contractBase()}/billing`,
     label: "請求とお支払い",
     section: "契約",
