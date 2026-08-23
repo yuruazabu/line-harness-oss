@@ -26,7 +26,11 @@ export default function ContractFrame({
   title: string
 }) {
   const ref = useRef<HTMLIFrameElement>(null)
-  const [height, setHeight] = useState(600)
+  // ★★ **最初は 0。** 見当で高さを置くと、実際の高さが届いた瞬間に
+  //   ページの高さが跳ね、**スクロールバーが出たり消えたりする**
+  //   (2026-08-23 ひろさん指摘「右端のスクロールバーが違和感ある」)。
+  //   0 なら跳ねる方向が1回だけになる。
+  const [height, setHeight] = useState(0)
 
   // 契約の土台。中継構成では https://app.hrns.jp/t/{契約}
   const base = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
@@ -55,7 +59,8 @@ export default function ContractFrame({
       src={src}
       title={title}
       className="w-full border-0 block"
-      style={{ height }}
+      // 高さが届くまでは場所を取らない(スクロールバーを出さないため)
+      style={{ height, visibility: height ? undefined : 'hidden' }}
       // ★ 同一オリジンなので sandbox は掛けない(掛けるとCookieが届かない)
     />
   )
