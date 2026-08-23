@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { getApiBase } from '@/lib/api-base'
+import { publicBase } from '@/lib/public-base'
 
 interface Props {
   liffId: string | null
@@ -12,13 +12,13 @@ interface Props {
 }
 
 // Worker base URL for webhook / OAuth / LIFF endpoint registration.
-// In production this is something like https://your-worker.your-subdomain.workers.dev,
-// or (shared build, same origin as the admin) resolved from the browser's own
-// origin — see getApiBase() in '@/lib/api-base' for the precedence rule.
+// In production this is something like https://your-worker.your-subdomain.workers.dev.
+// We derive it from NEXT_PUBLIC_API_URL because the admin UI already requires
+// that env var (build fails without it — see apps/web/src/lib/api.ts).
+// ★ **API の向き先ではなく公開オリジンを使う。** ここで出すURLは
+//   LINE Developers Console に登録され、配信メッセージに焼き込まれる
 function workerBase(): string {
-  const url = getApiBase()
-  if (!url) return ''
-  return url.replace(/\/$/, '')
+  return publicBase()
 }
 
 export default function AccountSetupUrls({ liffId, heading }: Props) {

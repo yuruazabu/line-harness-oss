@@ -9,6 +9,7 @@ import Header from '@/components/layout/header'
 import { useAccount } from '@/contexts/account-context'
 import type { EntryRoute, TrafficPool, Scenario, Tag } from '@line-crm/shared'
 import EditRouteModal from './_components/edit-route-modal'
+import { publicBase } from '@/lib/public-base'
 
 interface MessageTemplate {
   id: string
@@ -52,12 +53,8 @@ interface RefDetail {
   friends: RefFriend[]
 }
 
-// 呼び出し時 (call time) に解決する — モジュールスコープの定数にすると、静的
-// 書き出し（window 未定義）の時点で値が確定してしまい、共有ビルドではプレース
-// ホルダーが焼き付いたまま固定される（友だち追加 QR が壊れる原因になった）。
-function workerBase(): string {
-  return getApiBase() ?? ''
-}
+// ★ 計測リンク。配信メッセージに焼き込まれるので公開オリジン
+const WORKER_BASE = publicBase()
 
 export default function InflowLinksPage() {
   const { selectedAccountId } = useAccount()

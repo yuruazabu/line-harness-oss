@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { getApiBase } from '@/lib/api-base'
 import Header from '@/components/layout/header'
 import type { EntryRoute, EntryRouteFunnel } from '@line-crm/shared'
+import { publicBase } from '@/lib/public-base'
 
 export default function InflowLinkDetailPage() {
   const searchParams = useSearchParams()
@@ -42,7 +43,8 @@ export default function InflowLinkDetailPage() {
     )
   }
 
-  const url = `${getApiBase() ?? ''}/r/${route.refCode}`
+  // ★ 計測リンク。配信メッセージに焼き込まれるので公開オリジン
+  const url = `${publicBase()}/r/${route.refCode}`
 
   return (
     <div>

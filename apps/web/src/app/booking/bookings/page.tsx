@@ -15,6 +15,7 @@ import {
   type BookingTimeFilter,
   type BookingTimeGroup,
 } from './booking-view'
+import { publicBase } from '@/lib/public-base'
 
 const STATUS_FILTERS: Array<{ key: string; label: string }> = [
   { key: 'all', label: 'すべて' },
@@ -97,7 +98,8 @@ export default function BookingsPage() {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
 
   const liffId = selectedAccount?.liffId ?? null
-  const workerBase = getApiBase() ?? ''
+  // ★ 友だちが開くLIFFのURL。公開オリジンでなければならない
+  const workerBase = publicBase()
   const shareUrl = workerBase && liffId
     ? `${workerBase}/o?liffId=${encodeURIComponent(liffId)}&page=salon-book`
     : null
