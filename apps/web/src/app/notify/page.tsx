@@ -43,6 +43,9 @@ export default function NotifyPage() {
   const [cfg, setCfg] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState<string | null>(null)
+  // ★ **失敗を成功の顔で見せない。** これまで読み込み失敗も連携失敗も
+  //   緑の「成功」の枠に出ていた(2026-08-23 スタッフ画面と同じ問題を横展開)
+  const [msgNg, setMsgNg] = useState(false)
   const [busy, setBusy] = useState(false)
   const [adding, setAdding] = useState(false)
 
@@ -50,6 +53,7 @@ export default function NotifyPage() {
     try {
       setCfg((await callApi('')) as Config)
     } catch (e) {
+      setMsgNg(true)
       setMsg(e instanceof Error ? e.message : '設定を読み込めませんでした')
     } finally {
       setLoading(false)
@@ -63,6 +67,7 @@ export default function NotifyPage() {
     const p = new URLSearchParams(location.search)
     const r = p.get('slack')
     if (r) {
+      setMsgNg(r !== 'ok')
       setMsg(p.get('msg') ?? (r === 'ok' ? '連携しました。' : '連携できませんでした。'))
       p.delete('slack')
       p.delete('msg')
@@ -84,6 +89,7 @@ export default function NotifyPage() {
       // ★ 失敗したらポップアップを閉じる。開いたままだと、
       //   その裏に出るお知らせに気づけない
       setAdding(false)
+      setMsgNg(true)
       setMsg(e instanceof Error ? e.message : '連携を始められませんでした')
       setBusy(false)
     }
@@ -108,7 +114,13 @@ export default function NotifyPage() {
       />
 
       {msg && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+        <div
+          className={`mb-4 p-4 border rounded-lg text-sm ${
+            msgNg
+              ? 'bg-red-50 border-red-200 text-red-700'
+              : 'bg-green-50 border-green-200 text-green-700'
+          }`}
+        >
           {msg}
         </div>
       )}
