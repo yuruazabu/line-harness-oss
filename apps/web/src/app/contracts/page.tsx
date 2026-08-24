@@ -8,7 +8,7 @@ import ContractFrame from '@/components/embed/contract-frame'
 export default function Page() {
   return (
     <div>
-      <ContractFrame path="/?switch=1" title="契約の切り替え" />
+      <ContractFrame path="/?switch=1" title="契約一覧" />
     </div>
   )
 }
