@@ -7,6 +7,7 @@ import { api, bookingApi, type BookingMenu } from '@/lib/api'
 import { getApiBase } from '@/lib/api-base'
 import type { Tag } from '@line-crm/shared'
 import { useAccount } from '@/contexts/account-context'
+import { publicBase } from '@/lib/public-base'
 
 const EMPTY: Partial<BookingMenu> = {
   name: '',
@@ -32,7 +33,8 @@ export default function MenusPage() {
   const [tags, setTags] = useState<Tag[]>([])
 
   const liffId = selectedAccount?.liffId ?? null
-  const workerBase = getApiBase() ?? ''
+  // ★ 友だちが開くLIFFのURL。公開オリジンでなければならない
+  const workerBase = publicBase()
 
   async function copyMenuUrl(menuId: string) {
     if (!workerBase || !liffId) return
